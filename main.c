@@ -70,9 +70,18 @@ void print_prompt() {
 /*
     Stampa l'aiuto
 */
-void printhelp() {
-    char *help = "QUI CI METTIAMO UN BELL'HELP!\n";
-    printf("%s", help);
+void print_help() {
+    printf("\n\n\
+                  C u s t o m   S h e l l\n\
+                Progetto Sistemi Operativi 1\n\n\n\
+  Usage:\n\
+      ./shell <options>\n\n\
+  Options:\n\
+      -h, --help           Mostra questo messaggio\n\
+      -o, --outfile        File di log dello stdout dei comandi\n\
+      -e, --errfile        File di log dello stderr dei comandi\n\
+      -m, --maxsize        Dimensione massima in bytes dei file di log\n\
+      -r, --retcode        Registra anche i codici di ritorno dei comandi\n\n\n");
 }
 
 
@@ -136,8 +145,8 @@ int exec_cmd(char** args) {
 */
 int main() {
     // Apri i file di log
-    log_out = open("log_stdout.txt", O_RDWR | O_CREAT, 0777);
-    log_err = open("log_stderr.txt", O_RDWR | O_CREAT, 0777);
+    log_out = open("log_stdout.txt", O_RDWR | O_CREAT, 0664); // Permessi: 664 = rw-rw-r--
+    log_err = open("log_stderr.txt", O_RDWR | O_CREAT, 0664);
 
     // Buffer per l'input dell'utente
     char *comando;
@@ -156,7 +165,7 @@ int main() {
         // altrimenti eseguilo come figlio
         if (strcmp(comando, "clear") == 0) clear();
         else if(strcmp(comando, "exit") == 0) break;
-        else if(strcmp(comando, "help") == 0) printhelp();
+        else if(strcmp(comando, "help") == 0) print_help();
         else {
             // TODO fare un parse_line, ad exec_cmd va passato un array di argomenti non la stringa...
             exec_cmd((char* []){ comando, NULL });
