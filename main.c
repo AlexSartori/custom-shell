@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include "utils.h"
+#include "queue.h"
 
 int main(int argc, char** argv) {
 
@@ -22,6 +23,9 @@ int main(int argc, char** argv) {
     // Buffer per l'input dell'utente
     char *comando;
 
+    //history queue
+    Queue *history = ConstructQueue(50); //Parametro dimensione history?
+
     while(1) {
         print_prompt();
 
@@ -31,11 +35,38 @@ int main(int argc, char** argv) {
 
         //rimuovo caratteri che potrebbero farmi fallire strcmp
         comando[strcspn(comando, "\r\n")] = 0;
+
+        //gestisco history
+        NODE *pN = (NODE*) malloc(sizeof (NODE));
+        char *cp = (char*) malloc(strlen(comando));
+        strcpy(cp, comando);
+        pN -> info = cp;
+        Enqueue(history, pN);
+
         comando = strtok (comando," ");
+        char *ok;
 
         if (strcmp(comando, "clear") == 0) clear();
         else if(strcmp(comando, "exit") == 0) break;
         else if(strcmp(comando, "help") == 0) printhelp();
+        else if(strcmp(comando, "history") == 0) {
+            int lim = 20;
+            ok = strtok (NULL," ");
+            if(ok != NULL) lim = atoi(ok);
+            if(lim < 1 || lim > 50) {
+                printf("! ERRORE, LIMITE = 20\n");
+                lim = 20;
+            }
+            lim = history->size - lim;
+            if(lim < 0) lim = 0;
+            NODE *tmp = history -> head;
+            int cont = 0;
+            while (tmp != NULL) {
+                if(cont >= lim) printf("%s\n", tmp->info);
+                tmp = tmp -> prev;
+                cont++;
+            }
+        }
         else if(strcmp(comando, "cd") == 0) {
             int status = chdir(strtok (NULL, " "));
             if(status == -1) {
@@ -54,36 +85,42 @@ int main(int argc, char** argv) {
                 e mettere direttamente nella coda il contenuto della variabile
                 poi la coda dovrebbe diventare l'array per i parametri sotto
             */
-            exec_cmd((char* []){comando, strtok (NULL, " "), NULL}, log_out, log_err, child_out, child_err);
+            Queue *par = ConstructQueue(10);
+            char *tmp = strtok (NULL, " ");
+            while(tmp != NULL) {
+                //printf("%s\n", tmp);
+                NODE *pN = (NODE*) malloc(sizeof (NODE));
+                char *cp = (char*) malloc(strlen(tmp));
+                strcpy(cp, tmp);
+                pN -> info = cp;
+                Enqueue(par, pN);
+                tmp = strtok (NULL, " ");
+            }
+            char **arg = malloc((par->size + 2) * sizeof(char*));
+            arg[0] = (char*) malloc(strlen(comando));
+            strcpy(arg[0], comando);
+
+            NODE *n = par->head;
+            int i = 1;
+            while (n != NULL) {
+                arg[i] = (char*) malloc(strlen(n->info));
+                strcpy(arg[i], n->info);
+                n = n -> prev;
+                i++;
+            }
+            arg[i] = NULL;
+
+            exec_cmd(arg, log_out, log_err, child_out, child_err);
+            for(i=0;i<par->size+1;i++) free(arg[i]);
+            DestructQueue(par);
         }
-
-
-        /*
-        while (comando_split != NULL) {
-            printf ("%s\n",comando_split);
-
-            //next token
-            comando_split = strtok (NULL, " ");
-        }
-        */
-
-        /*
-        // Controlla se è un comando interno ed interpretalo,
-        // altrimenti eseguilo come figlio
-        if (strcmp(comando, "clear") == 0) clear();
-        else if(strcmp(comando, "exit") == 0) break;
-        else if(strcmp(comando, "help") == 0) printhelp();
-        else {
-            // TODO fare un parse_line, ad exec_cmd va passato un array di argomenti non la stringa...
-            exec_cmd((char* []){ comando, NULL });
-        }
-        */
 
         free(comando);
     }
 
 
     // Pulisci tutto ed esci
+    DestructQueue(history);
     close(log_out);
     close(log_err);
     return 0;
