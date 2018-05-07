@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
     char *comando;
 
     //history queue
-    Queue *history = ConstructQueue(50); //Parametro dimensione history?
+    Queue *history = ConstructQueue(50);
 
     while(1) {
         print_prompt();

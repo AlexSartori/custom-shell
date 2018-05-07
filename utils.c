@@ -149,7 +149,6 @@ void print_prompt() {
     Parametro: array degli argomenti, il primo elemento sarà il comando
 */
 int exec_cmd(char** args, int log_out, int log_err, int *child_out, int *child_err) {
-
     // Codice di ritorno del processo
     int ret_code = -1;
     pid_t pid;
@@ -181,23 +180,24 @@ int exec_cmd(char** args, int log_out, int log_err, int *child_out, int *child_e
     }
 
     // Leggi stdout del figlio e scrivilo su stdout e logfile
-    char* buf_out = (char*)malloc(sizeof(char)*BUF_SIZE);
-    if (read(child_out[PIPE_READ], buf_out, BUF_SIZE) > 0) { 
-        fprintf(stdout, "%s", buf_out);                         
-        write(log_out, buf_out, strlen(buf_out));                         
-        free(buf_out);
+    char* buf = (char*)malloc(sizeof(char)*BUF_SIZE);
+    int r = 0;
+    while ((r = read(child_out[PIPE_READ], buf, BUF_SIZE)) > 0) {
+        buf[r] = '\0';
+        fprintf(stdout, "%s", buf);
+        write(log_out, buf, r);
     } 
     close(child_out[PIPE_READ]);
     
 
     // Leggi stderr del figlio e scrivilo su stderr e logfile
-    char* buf_err = (char*)malloc(sizeof(char)*BUF_SIZE);
-    if (read(child_err[PIPE_READ], buf_err, BUF_SIZE) > 0) {
-        fprintf(stderr, "%s", buf_err);
-        write(log_err, buf_err, strlen(buf_err)); 
-        free(buf_err); 
+    while ((r = read(child_err[PIPE_READ], buf, BUF_SIZE)) > 0) {
+        buf[r] = '\0';
+        fprintf(stderr, "%s", buf);
+        write(log_err, buf, r);
     }
     close(child_err[PIPE_READ]);
     
+    free(buf);
     return ret_code;
 }
