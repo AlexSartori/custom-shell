@@ -5,8 +5,9 @@
 #include <sys/wait.h>
 #include <string.h>
 #include <fcntl.h>
+#include <stdbool.h>
 
-#define BUF_SIZE 1024       // Dimensione dei buffer
+#define BUF_SIZE 2048       // Dimensione dei buffer
 
 #define KNRM  "\x1B[0m"     // Codici ASCII dei colori
 #define KRED  "\x1B[31m"
@@ -63,25 +64,16 @@ void print_prompt() {
     printf(" @ ");
     getcwd(path, BUF_SIZE);
     printcolor(path, KYEL);
-    printf("]$ ");
+    printf("] -> ");
 }
 
 
 /*
     Stampa l'aiuto
 */
-void print_help() {
-    printf("\n\n\
-                  C u s t o m   S h e l l\n\
-                Progetto Sistemi Operativi 1\n\n\n\
-  Usage:\n\
-      ./shell <options>\n\n\
-  Options:\n\
-      -h, --help           Mostra questo messaggio\n\
-      -o, --outfile        File di log dello stdout dei comandi\n\
-      -e, --errfile        File di log dello stderr dei comandi\n\
-      -m, --maxsize        Dimensione massima in bytes dei file di log\n\
-      -r, --retcode        Registra anche i codici di ritorno dei comandi\n\n\n");
+void printhelp() {
+    char *help = "QUI CI METTIAMO UN BELL'HELP!\n";
+    printf("%s", help);
 }
 
 
@@ -121,21 +113,24 @@ int exec_cmd(char** args) {
     }
 
     // Leggi stdout del figlio e scrivilo su stdout e logfile
-    char* buf = (char*)malloc(sizeof(char)*BUF_SIZE);
-    while (read(child_out[PIPE_READ], buf, BUF_SIZE) > 0) {
-        fprintf(stdout, "%s", buf);
-        write(log_out, buf, strlen(buf));
+    char* buf_out = (char*)malloc(sizeof(char)*BUF_SIZE);
+    if (read(child_out[PIPE_READ], buf_out, BUF_SIZE) > 0) {
+        fprintf(stdout, "%s", buf_out);
+        write(log_out, buf_out, strlen(buf_out));
+        free(buf_out);
     }
     close(child_out[PIPE_READ]);
 
+
     // Leggi stderr del figlio e scrivilo su stderr e logfile
-    while (read(child_err[PIPE_READ], buf, BUF_SIZE) > 0) {
-        fprintf(stderr, "%s", buf);
-        write(log_err, buf, strlen(buf));
+    char* buf_err = (char*)malloc(sizeof(char)*BUF_SIZE);
+    if (read(child_err[PIPE_READ], buf_err, BUF_SIZE) > 0) {
+        fprintf(stderr, "%s", buf_err);
+        write(log_err, buf_err, strlen(buf_err));
+        free(buf_err);
     }
     close(child_err[PIPE_READ]);
 
-    free(buf); // Mannaggia al cazzo che me le dimentico sempre ste free
     return ret_code;
 }
 
@@ -145,8 +140,8 @@ int exec_cmd(char** args) {
 */
 int main() {
     // Apri i file di log
-    log_out = open("log_stdout.txt", O_RDWR | O_CREAT, 0664); // Permessi: 664 = rw-rw-r--
-    log_err = open("log_stderr.txt", O_RDWR | O_CREAT, 0664);
+    log_out = open("log_stdout.txt", O_RDWR | O_CREAT, 0777);
+    log_err = open("log_stderr.txt", O_RDWR | O_CREAT, 0777);
 
     // Buffer per l'input dell'utente
     char *comando;
@@ -160,16 +155,53 @@ int main() {
 
         //rimuovo caratteri che potrebbero farmi fallire strcmp
         comando[strcspn(comando, "\r\n")] = 0;
+        comando = strtok (comando," ");
 
+        if (strcmp(comando, "clear") == 0) clear();
+        else if(strcmp(comando, "exit") == 0) break;
+        else if(strcmp(comando, "help") == 0) printhelp();
+        else if(strcmp(comando, "cd") == 0) {
+            int status = chdir(strtok (NULL, " "));
+            if(status == -1) {
+                printcolor("! Errore: cartella inesistente\n", KRED);
+            }
+        }
+        else {
+            // TODO fare un parse_line, ad exec_cmd va passato un array di argomenti non la stringa...
+
+            /*
+                Francesco:
+                va bene così? una roba tipo "comando" spazio "argomenti"
+                possiamo anche leggere più argomenti tipo "comando -a1 -a2 -a3" ma va estesa questa parte
+                stavo pensando di leggere tutti i tokens in una volta e metterli in una coda,
+                durante la lettura voglio catturare le variabili d'ambiente, vedere se matchano con quelle dichiarate
+                e mettere direttamente nella coda il contenuto della variabile
+                poi la coda dovrebbe diventare l'array per i parametri sotto
+            */
+            exec_cmd((char* []){comando, strtok (NULL, " "), NULL});
+        }
+
+
+        /*
+        while (comando_split != NULL) {
+            printf ("%s\n",comando_split);
+
+            //next token
+            comando_split = strtok (NULL, " ");
+        }
+        */
+
+        /*
         // Controlla se è un comando interno ed interpretalo,
         // altrimenti eseguilo come figlio
         if (strcmp(comando, "clear") == 0) clear();
         else if(strcmp(comando, "exit") == 0) break;
-        else if(strcmp(comando, "help") == 0) print_help();
+        else if(strcmp(comando, "help") == 0) printhelp();
         else {
             // TODO fare un parse_line, ad exec_cmd va passato un array di argomenti non la stringa...
             exec_cmd((char* []){ comando, NULL });
         }
+        */
 
         free(comando);
     }
