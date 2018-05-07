@@ -6,11 +6,15 @@
 #include <stdbool.h>
 #include "utils.h"
 
-int main() {
+int main(int argc, char** argv) {
 
     int log_out, log_err; // File di log
     int child_out[2], child_err[2]; // Pipe per leggere out ed err dei comandi da eseguire
 
+    printf("Parsing argv...\n");
+    read_options(argc, argv);
+    printf("\n");
+    
     // Apri i file di log
     log_out = open("log_stdout.txt", O_RDWR | O_CREAT, 0777);
     log_err = open("log_stderr.txt", O_RDWR | O_CREAT, 0777);

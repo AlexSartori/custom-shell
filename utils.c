@@ -6,15 +6,104 @@
 #include <string.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <getopt.h>
+
 #include "utils.h"
+
+
+/*
+    Legge le opzioni con cui la shell è stata chiamata e setta le variabili]
+    Opzioni attese:
+    -o <file>, --outfile=<file>
+    -e <file>, --errfile=<file>
+    -m <int>, --maxsize=<int>
+    -r, --retcode
+    
+    Params:
+        argc, argv: quelli del main da leggere
+    
+    See:
+        https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Options.html#Getopt-Long-Options
+*/
+void read_options(int argc, char** argv) {
+    /*
+        Array di struct OPTION che descrivono le opzioni aspettate
+        
+        Params:
+            name:    nome dell'opzione
+            has_arg: se l'opzione richiede un argomento obbligatorio
+            flag:    quando questa opzione verrà trovata, val verrà messo dove punta flag
+            val:     vedi sopra, (se flag == NULL, viene ritornato val)
+    */
+    struct option long_opts[] = {
+        { "outfile", required_argument, 0, 'o' },
+        { "errfile", required_argument, 0, 'e' },
+        { "maxsize", required_argument, 0, 'm' },
+        { "retcode", no_argument,       0, 'r' },
+        { "help",    no_argument,       0, 'h' },
+        { 0, 0, 0, 0 } // Serve come delimitatore finale dell'array
+    };
+    
+    char c;
+    int indexptr;
+    opterr = 0; // Non stampare messaggi
+    
+    while ((c = getopt_long(argc, argv, ":o:e:m:rh", long_opts, &indexptr)) != -1) {
+        switch (c) {
+            case 'h':
+                printhelp();
+                break;
+            case 'o':
+                printf("  Outfile:\t%s\n", optarg);
+                break;
+            case 'e':
+                printf("  Errfile:\t%s\n", optarg);
+                break;
+            case 'm':
+                printf("  Max Size:\t%s [bytes]\n", optarg);
+                break;
+            case 'r':
+                printf("  Record process return code: yes\n");
+                break;
+            
+            case ':':
+                fprintf(stderr, "Argument required for -%c\n", optopt);
+                break;
+            case '?':
+                fprintf(stderr, "Unknown option: %s\n", argv[optind-1]);
+                break;
+            default:
+                fprintf(stderr, "Errore nella lettura delle opzioni (codice opzione: %c)\n", c);
+                break;
+        }
+    }
+    
+    // Se sono rimasti argomenti non riconosciuti avverti l'utente
+    for (int i = optind; i < argc; i++)
+        fprintf(stderr, "Unrecognized argument: %s\n", argv[i]);
+    
+    return;
+}
+
+
 
 /*
     Stampa l'aiuto
 */
 void printhelp() {
-    char *help = "QUI CI METTIAMO UN BELL'HELP!\n";
-    printf("%s", help);
+    printf("\n\n\
+                     C u s t o m   S h e l l\n\
+                   Progetto Sistemi Operativi 1\n\n\n\
+  Usage:\n\
+      ./shell <options>\n\n\
+  Options:\n\
+      -h, --help           Mostra questo messaggio\n\
+      -o, --outfile        File di log dello stdout dei comandi\n\
+      -e, --errfile        File di log dello stderr dei comandi\n\
+      -m, --maxsize        Dimensione massima in bytes dei file di log\n\
+      -r, --retcode        Registra anche i codici di ritorno dei comandi\n\n\n");
 }
+
 
 /*
     Ritorna il nome dell'utente attivo (altrimenti la stringa "user")
