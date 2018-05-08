@@ -7,6 +7,8 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <getopt.h>
+#include <signal.h>
+#include <errno.h>
 
 #include "utils.h"
 
@@ -129,27 +131,12 @@ void printcolor(char *s, char *color) {
 
 
 /*
-    Stampa il prompt della shell come "[utente@percorso]$"
-*/
-void print_prompt() {
-    char* user = getuser();
-    char path[BUF_SIZE];
-
-    printf("[");
-    printcolor(user, KNRM);
-    printf(" @ ");
-    getcwd(path, BUF_SIZE);
-    printcolor(path, KYEL);
-    printf("] -> ");
-}
-
-
-/*
     Esegui il comando passato come figlio e registra stdout e stderr.
     Parametro: array degli argomenti, il primo elemento sarà il comando
 */
 int exec_cmd(char** args, int log_out, int log_err, int *child_out, int *child_err) {
     // Codice di ritorno del processo
+
     int ret_code = -1;
     pid_t pid;
 
@@ -169,14 +156,23 @@ int exec_cmd(char** args, int log_out, int log_err, int *child_out, int *child_e
         dup2(child_out[PIPE_WRITE], 1);
         dup2(child_err[PIPE_WRITE], 2);
         ret_code = execvp(args[0], args);
+        exit(errno);
         if (ret_code < 0) perror("Cannot execute command");
         close(child_out[PIPE_WRITE]);
         close(child_err[PIPE_WRITE]);
     } else {
         // Parent: chiudi i pipe che non servono e aspetta il figlio
+        int status;
+
+        wait(&status);       /*you made a exit call in child you 
+                           need to wait on exit status of child*/
+
+        //if(WIFEXITED(status)) print("child exited with = %d\n",WEXITSTATUS(status));
+        if(WIFEXITED(status) && WEXITSTATUS(status) != 0) printcolor("! Comando non esistente\n",KRED);
+
         close(child_out[PIPE_WRITE]);
         close(child_err[PIPE_WRITE]);
-        wait(NULL);
+        //wait(NULL);
     }
 
     // Leggi stdout del figlio e scrivilo su stdout e logfile
@@ -197,7 +193,6 @@ int exec_cmd(char** args, int log_out, int log_err, int *child_out, int *child_e
         write(log_err, buf, r);
     }
     close(child_err[PIPE_READ]);
-    
     free(buf);
     return ret_code;
 }

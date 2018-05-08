@@ -20,7 +20,6 @@
 //PROTOTIPI FUNZIONI E PROCEDURE
 char* getuser();
 void printcolor(char *s, char *color);
-void print_prompt();
 void printhelp();
 int exec_cmd(char** args, int log_out, int log_err, int *child_out, int *child_err);
 void read_options(int argc, char** argv);

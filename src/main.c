@@ -6,32 +6,38 @@
 #include <stdbool.h>
 #include "utils.h"
 #include "queue.h"
+#include <readline/readline.h>
+#include <readline/history.h>
 
 int main(int argc, char** argv) {
 
     int log_out, log_err; // File di log
     int child_out[2], child_err[2]; // Pipe per leggere out ed err dei comandi da eseguire
 
-    printf("Parsing argv...\n");
+    //printf("Parsing argv...\n");
     read_options(argc, argv);
-    printf("\n");
+    //printf("\n");
     
     // Apri i file di log
     log_out = open("log_stdout.txt", O_RDWR | O_CREAT, 0777);
     log_err = open("log_stderr.txt", O_RDWR | O_CREAT, 0777);
 
     // Buffer per l'input dell'utente
-    char *comando;
+    char *comando, prompt[100];
 
     //history queue
     Queue *history = ConstructQueue(50);
 
+    //tab autocomplete
+    rl_bind_key('\t', rl_complete);
+
     while(1) {
-        print_prompt();
+
+        snprintf(prompt, sizeof(prompt), "[%s%s%s @ %s%s%s] -> ", KCYN, getuser(), KNRM, KYEL, getcwd(NULL, 1024), KNRM);
 
         size_t DIM_BUFFER_COMANDO = 1000;
         comando = (char *) malloc(DIM_BUFFER_COMANDO*sizeof(char));
-        getline(&comando, &DIM_BUFFER_COMANDO, stdin);
+        comando = readline(prompt);
 
         //rimuovo caratteri che potrebbero farmi fallire strcmp
         comando[strcspn(comando, "\r\n")] = 0;
@@ -42,6 +48,7 @@ int main(int argc, char** argv) {
         strcpy(cp, comando);
         pN -> info = cp;
         Enqueue(history, pN);
+        add_history(comando);
 
         comando = strtok (comando," ");
         char *ok;
@@ -73,7 +80,7 @@ int main(int argc, char** argv) {
                 printcolor("! Errore: cartella inesistente\n", KRED);
             }
         }
-        else {
+        else { 
             // TODO fare un parse_line, ad exec_cmd va passato un array di argomenti non la stringa...
 
             /*
