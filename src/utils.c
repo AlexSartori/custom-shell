@@ -2,7 +2,6 @@
 #include <unistd.h>
 #include <pwd.h>
 #include <stdlib.h>
-#include <sys/wait.h>
 #include <string.h>
 #include <fcntl.h>
 #include <stdbool.h>
@@ -53,7 +52,7 @@ void read_options(int argc, char** argv) {
     while ((c = getopt_long(argc, argv, ":o:e:m:rh", long_opts, &indexptr)) != -1) {
         switch (c) {
             case 'h':
-                printhelp();
+                print_help();
                 break;
             case 'o':
                 printf("  Outfile:\t%s\n", optarg);
@@ -88,11 +87,10 @@ void read_options(int argc, char** argv) {
 }
 
 
-
 /*
     Stampa l'aiuto
 */
-void printhelp() {
+void print_help() {
     printf("\n\n\
                      C u s t o m   S h e l l\n\
                    Progetto Sistemi Operativi 1\n\n\n\
@@ -141,70 +139,11 @@ char* get_prompt(char* prompt) {
     return prompt;
 }
 
-
 /*
-    Esegui il comando passato come figlio e registra stdout e stderr.
-    Parametro: array degli argomenti, il primo elemento sarà il comando
+    Pulisce tutto ed esce
+    // TODO chiudere i file
 */
-int exec_cmd(char** args, int log_out, int log_err, int *child_out, int *child_err) {
-    // Codice di ritorno del processo
-
-    int ret_code = -1;
-    pid_t pid;
-
-    // Habemus Pipe cit.
-    if (pipe(child_out) < 0) perror("Cannot create stdout pipe to child");
-    if (pipe(child_err) < 0) perror("Cannot create stderr pipe to child");
-    if ((pid = fork())  < 0) perror("Cannot create child");
-
-    if (pid == 0) {
-        // Child:
-        //   - Chiudi pipe-end che non servono
-        //   - Redirigi out/err ed esegui il comando
-        //   - Chiudi i pipe
-
-        close(child_out[PIPE_READ]);
-        close(child_err[PIPE_READ]);
-        dup2(child_out[PIPE_WRITE], 1);
-        dup2(child_err[PIPE_WRITE], 2);
-        ret_code = execvp(args[0], args);
-        exit(errno);
-        if (ret_code < 0) perror("Cannot execute command");
-        close(child_out[PIPE_WRITE]);
-        close(child_err[PIPE_WRITE]);
-    } else {
-        // Parent: chiudi i pipe che non servono e aspetta il figlio
-        int status;
-
-        wait(&status);       /*you made a exit call in child you
-                           need to wait on exit status of child*/
-
-        //if(WIFEXITED(status)) print("child exited with = %d\n",WEXITSTATUS(status));
-        if(WIFEXITED(status) && WEXITSTATUS(status) != 0) printcolor("! Comando non esistente\n",KRED);
-
-        close(child_out[PIPE_WRITE]);
-        close(child_err[PIPE_WRITE]);
-        //wait(NULL);
-    }
-
-    // Leggi stdout del figlio e scrivilo su stdout e logfile
-    char* buf = (char*)malloc(sizeof(char)*BUF_SIZE);
-    int r = 0;
-    while ((r = read(child_out[PIPE_READ], buf, BUF_SIZE)) > 0) {
-        buf[r] = '\0';
-        fprintf(stdout, "%s", buf);
-        write(log_out, buf, r);
-    }
-    close(child_out[PIPE_READ]);
-
-
-    // Leggi stderr del figlio e scrivilo su stderr e logfile
-    while ((r = read(child_err[PIPE_READ], buf, BUF_SIZE)) > 0) {
-        buf[r] = '\0';
-        fprintf(stderr, "%s", buf);
-        write(log_err, buf, r);
-    }
-    close(child_err[PIPE_READ]);
-    free(buf);
-    return ret_code;
+void shell_exit(int status) {
+    printf("\n");
+    exit(status);
 }

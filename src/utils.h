@@ -12,8 +12,6 @@
 #define KMAG  "\x1B[35m"
 #define KCYN  "\x1B[36m"
 #define KWHT  "\x1B[37m"
-#define PIPE_READ 0
-#define PIPE_WRITE 1
 #define clear() printf("\033[H\033[J")
 #define min(a, b) (a > b ? b : a)
 #define max(a, b) (a > b ? a : b)
@@ -22,9 +20,9 @@
 //PROTOTIPI FUNZIONI E PROCEDURE
 char* getuser();
 void printcolor(char *s, char *color);
-void printhelp();
+void print_help();
+void shell_exit(int status);
 char* get_prompt(char* prompt);
-int exec_cmd(char** args, int log_out, int log_err, int *child_out, int *child_err);
 void read_options(int argc, char** argv);
 
 #endif
