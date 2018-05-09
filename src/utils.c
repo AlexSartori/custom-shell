@@ -20,17 +20,17 @@
     -e <file>, --errfile=<file>
     -m <int>, --maxsize=<int>
     -r, --retcode
-    
+
     Params:
         argc, argv: quelli del main da leggere
-    
+
     See:
         https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Options.html#Getopt-Long-Options
 */
 void read_options(int argc, char** argv) {
     /*
         Array di struct OPTION che descrivono le opzioni aspettate
-        
+
         Params:
             name:    nome dell'opzione
             has_arg: se l'opzione richiede un argomento obbligatorio
@@ -45,11 +45,11 @@ void read_options(int argc, char** argv) {
         { "help",    no_argument,       0, 'h' },
         { 0, 0, 0, 0 } // Serve come delimitatore finale dell'array
     };
-    
+
     char c;
     int indexptr;
     opterr = 0; // Non stampare messaggi
-    
+
     while ((c = getopt_long(argc, argv, ":o:e:m:rh", long_opts, &indexptr)) != -1) {
         switch (c) {
             case 'h':
@@ -67,7 +67,7 @@ void read_options(int argc, char** argv) {
             case 'r':
                 printf("  Record process return code: yes\n");
                 break;
-            
+
             case ':':
                 fprintf(stderr, "Argument required for -%c\n", optopt);
                 break;
@@ -79,11 +79,11 @@ void read_options(int argc, char** argv) {
                 break;
         }
     }
-    
+
     // Se sono rimasti argomenti non riconosciuti avverti l'utente
     for (int i = optind; i < argc; i++)
         fprintf(stderr, "Unrecognized argument: %s\n", argv[i]);
-    
+
     return;
 }
 
@@ -113,7 +113,6 @@ void printhelp() {
 char* getuser() {
   register struct passwd *pw;
   register uid_t uid;
-  int c;
 
   uid = geteuid ();
   pw = getpwuid (uid);
@@ -127,6 +126,19 @@ char* getuser() {
 */
 void printcolor(char *s, char *color) {
     printf("%s%s%s", color, s, KNRM);
+}
+
+
+/*
+    Stampa il prompt della shell come "[utente@percorso]$"
+*/
+char* get_prompt(char* prompt) {
+    char path[BUF_SIZE];
+
+    if (getcwd(path, BUF_SIZE) == NULL) perror("Path cannot fit in the buffer");
+    snprintf(prompt, BUF_SIZE, "[%s%s%s @ %s%s%s] -> ", KCYN, getuser(), KNRM, KYEL, path, KNRM);
+
+    return prompt;
 }
 
 
@@ -164,7 +176,7 @@ int exec_cmd(char** args, int log_out, int log_err, int *child_out, int *child_e
         // Parent: chiudi i pipe che non servono e aspetta il figlio
         int status;
 
-        wait(&status);       /*you made a exit call in child you 
+        wait(&status);       /*you made a exit call in child you
                            need to wait on exit status of child*/
 
         //if(WIFEXITED(status)) print("child exited with = %d\n",WEXITSTATUS(status));
@@ -182,9 +194,9 @@ int exec_cmd(char** args, int log_out, int log_err, int *child_out, int *child_e
         buf[r] = '\0';
         fprintf(stdout, "%s", buf);
         write(log_out, buf, r);
-    } 
+    }
     close(child_out[PIPE_READ]);
-    
+
 
     // Leggi stderr del figlio e scrivilo su stderr e logfile
     while ((r = read(child_err[PIPE_READ], buf, BUF_SIZE)) > 0) {

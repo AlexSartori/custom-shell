@@ -17,70 +17,53 @@ int main(int argc, char** argv) {
     //printf("Parsing argv...\n");
     read_options(argc, argv);
     //printf("\n");
-    
+
     // Apri i file di log
     log_out = open("log_stdout.txt", O_RDWR | O_CREAT, 0777);
     log_err = open("log_stderr.txt", O_RDWR | O_CREAT, 0777);
 
     // Buffer per l'input dell'utente
-    char *comando, prompt[100];
-
-    //history queue
-    Queue *history = ConstructQueue(50);
+    char *comando, prompt[BUF_SIZE];
 
     //tab autocomplete
     rl_bind_key('\t', rl_complete);
 
     while(1) {
-
-        snprintf(prompt, sizeof(prompt), "[%s%s%s @ %s%s%s] -> ", KCYN, getuser(), KNRM, KYEL, getcwd(NULL, 1024), KNRM);
-
+        get_prompt(prompt);
         size_t DIM_BUFFER_COMANDO = 1000;
         comando = (char *) malloc(DIM_BUFFER_COMANDO*sizeof(char));
         comando = readline(prompt);
+
+        if (comando == NULL) break; // Era una linea vuota
 
         //rimuovo caratteri che potrebbero farmi fallire strcmp
         comando[strcspn(comando, "\r\n")] = 0;
 
         //gestisco history
-        NODE *pN = (NODE*) malloc(sizeof (NODE));
-        char *cp = (char*) malloc(strlen(comando));
-        strcpy(cp, comando);
-        pN -> info = cp;
-        Enqueue(history, pN);
         add_history(comando);
 
         comando = strtok (comando," ");
-        char *ok;
 
         if (strcmp(comando, "clear") == 0) clear();
         else if(strcmp(comando, "exit") == 0) break;
         else if(strcmp(comando, "help") == 0) printhelp();
         else if(strcmp(comando, "history") == 0) {
-            int lim = 20;
-            ok = strtok (NULL," ");
-            if(ok != NULL) lim = atoi(ok);
-            if(lim < 1 || lim > 50) {
-                printf("! ERRORE, LIMITE = 20\n");
-                lim = 20;
-            }
-            lim = history->size - lim;
-            if(lim < 0) lim = 0;
-            NODE *tmp = history -> head;
-            int cont = 0;
-            while (tmp != NULL) {
-                if(cont >= lim) printf("%s\n", tmp->info);
-                tmp = tmp -> prev;
-                cont++;
-            }
-        }
-        else if(strcmp(comando, "cd") == 0) {
+            HIST_ENTRY** hist = history_list();
+            char* hist_arg = strtok(NULL, " ");
+            int n; // Quanti elementi della cronologia mostrare
+
+            // Se non è specificato li mostro tutti
+            if (hist_arg == NULL) n = history_length;
+            else n = min(atoi(hist_arg), history_length);
+
+            for (int i = history_length - n; i < history_length; i++)
+                printf("  %d\t%s\n", i + history_base, hist[i]->line);
+        } else if(strcmp(comando, "cd") == 0) {
             int status = chdir(strtok (NULL, " "));
             if(status == -1) {
                 printcolor("! Errore: cartella inesistente\n", KRED);
             }
-        }
-        else { 
+        } else {
             // TODO fare un parse_line, ad exec_cmd va passato un array di argomenti non la stringa...
 
             /*
@@ -127,7 +110,7 @@ int main(int argc, char** argv) {
 
 
     // Pulisci tutto ed esci
-    DestructQueue(history);
+    printf("\n");
     close(log_out);
     close(log_err);
     return 0;
