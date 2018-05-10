@@ -16,13 +16,17 @@
 #define min(a, b) (a > b ? b : a)
 #define max(a, b) (a > b ? a : b)
 
+struct OPTIONS {
+    char log_out_path[BUF_SIZE], log_err_path[BUF_SIZE];
+};
 
 //PROTOTIPI FUNZIONI E PROCEDURE
 char* getuser();
 void printcolor(char *s, char *color);
 void print_help();
-void shell_exit(int status);
+void write_to(int source, int log_file, int destination);
 char* get_prompt(char* prompt);
-void read_options(int argc, char** argv);
+struct OPTIONS read_options(int argc, char** argv);
+void sigHandler(int sig);
 
 #endif

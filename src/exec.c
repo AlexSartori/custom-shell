@@ -20,6 +20,7 @@
     exec_cmd:
         Separa la linea di comando in comando e argomenti, se il comando è una funzione
         interna la gestisce, altrimeni chiama fork_cmd (vedi sotto).
+        Es: exec_cmd("ls -l -a") --> fork_cmd(["ls", "-l", "-a"])
 
     fork_cmd:
         Crea un figlio che esegue il comando con gli argomenti passati.
@@ -31,10 +32,10 @@
     Se c'è un |, chiama due exec_line, altrimenti chiama fork_cmd e logga.
 
     Returns:
-        Status
+        Struct con le info sul processo
 */
-struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id) {
-    printf("----    Exec line: %s\n", line);
+struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, int log_err) {
+    // printf("----    Exec line: %s\n", line);
 
     // Cerco dal fondo se c'è un pipe
     int i;
@@ -45,15 +46,11 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id) {
     if (i >= 0) { // C'è un | nella posizione i
         struct PROCESS child1, child2;
         line[i] = '\0';
-        child1 = exec_line(line, cmd_id, subcmd_id);
-        child2 = exec_line(line+(i+1), cmd_id, subcmd_id);
+        child1 = exec_line(line, cmd_id, subcmd_id, log_out, log_err);
+        child2 = exec_line(line+(i+1), cmd_id, subcmd_id, log_out, log_err);
 
         // Leggi stdout di child1 e scrivilo su stdin di child2
-        char* buf = (char*)malloc(sizeof(char)*BUF_SIZE);
-        int r = 0;
-        while ((r = read(child1.stdout, buf, BUF_SIZE)) > 0)
-            write(child2.stdin, buf, r);
-        free(buf);
+        write_to(child1.stdout, log_out, child2.stdin);
 
         close(child1.stdout);
         close(child1.stdin);
@@ -62,42 +59,9 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id) {
 
         return child2;
     } else { // Non c'era nessun pipe
-        return exec_cmd(line, cmd_id, ++(*subcmd_id));
-        // Log process
+        (*subcmd_id)++;
+        return exec_cmd(line, cmd_id);
     }
-
-/*
-    // Log
-    char* buf = (char*)malloc(sizeof(char)*BUF_SIZE);
-    int r = 0;
-
-    // Leggi p_in e scrivilo su stdin del figlio
-    if (p_in >= 0) {
-        while ((r = read(p_in, buf, BUF_SIZE)) > 0)
-            write(child_in[PIPE_WRITE], buf, r);
-        close(p_in);
-    }
-    close(child_in[PIPE_WRITE]);
-
-    // Leggi stdout del figlio e scrivilo su p_out
-    while ((r = read(child_out[PIPE_READ], buf, BUF_SIZE)) > 0)
-        write(p_out, buf, r);
-    close(child_out[PIPE_READ]);
-    close(p_out);
-
-    // Leggi stderr del figlio e scrivilo su p_err
-    while ((r = read(child_err[PIPE_READ], buf, BUF_SIZE)) > 0)
-        write(p_err, buf, r);
-    close(child_err[PIPE_READ]);
-    close(p_err);
-
-    free(buf);
-
-    int status;
-    wait(&status);
-
-    if(WIFEXITED(status)) printf("child exited with = %d\n",WEXITSTATUS(status));
-    */
 }
 
 
@@ -106,8 +70,8 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id) {
     comando è una funzione interna.
     TODO magari espandendo variabili e percorsi
 */
-struct PROCESS exec_cmd(char* line, int cmd_id, int subcmd_id) {
-    printf("----    exec_cmd #%d.%d: %s\n", cmd_id, subcmd_id, line);
+struct PROCESS exec_cmd(char* line, int cmd_id) {
+    // printf("----    exec_cmd #%d.%d: %s\n", cmd_id, subcmd_id, line);
     // Separo comando e argomenti
     int spazi = 0, i = 0;
     for (int c = 0; line[c] != '\0'; c++) if (line[c] == ' ') spazi++;
@@ -121,11 +85,11 @@ struct PROCESS exec_cmd(char* line, int cmd_id, int subcmd_id) {
     args[i] = NULL;
 
     // Controllo se è un comando che voglio gestire internamente
-    // TODO anche questi devono avere I/O su file
+    // TODO anche questi devono avere I/O su file?
     if (strcmp(args[0], "clear") == 0)
         clear();
     else if (strcmp(args[0], "exit") == 0)
-        shell_exit(0);
+        exit(0); // shell_exit(0);
     else if (strcmp(args[0], "help") == 0)
         print_help();
     else if (strcmp(args[0], "cd") == 0)
@@ -152,7 +116,7 @@ struct PROCESS exec_cmd(char* line, int cmd_id, int subcmd_id) {
         // È un comando shell
         return fork_cmd(args);
     }
-    return exec_cmd(";", cmd_id, 1);
+    return exec_cmd(";", cmd_id);
 }
 
 
@@ -162,7 +126,7 @@ struct PROCESS exec_cmd(char* line, int cmd_id, int subcmd_id) {
         Returns: Struct PROCESS con info sul figlio
 */
 struct PROCESS fork_cmd(char** args) {
-    printf("----    Fork cmd [0] -> %s\n", args[0]);
+    // printf("----    Fork cmd [0] -> %s\n", args[0]);
     // Pipe per comunicare col figlio
     int child_in[2], child_out[2], child_err[2];
     pid_t pid;
@@ -206,7 +170,6 @@ struct PROCESS fork_cmd(char** args) {
         p.stdin  = child_in[PIPE_WRITE];
         p.stdout = child_out[PIPE_READ];
         p.stderr = child_err[PIPE_READ];
-        //p.status = ret_code;
         return p;
     }
 }

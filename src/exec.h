@@ -7,12 +7,11 @@
 struct PROCESS {
     int stdout,
         stderr,
-        stdin,
-        status;
+        stdin;
 };
 
-struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id);
-struct PROCESS exec_cmd(char* line, int cmd_id, int subcmd_id);
+struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, int log_err);
+struct PROCESS exec_cmd(char* line, int cmd_id);
 struct PROCESS fork_cmd(char** args);
 
 #endif
