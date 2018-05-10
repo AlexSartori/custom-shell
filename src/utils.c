@@ -144,6 +144,6 @@ char* get_prompt(char* prompt) {
     // TODO chiudere i file
 */
 void shell_exit(int status) {
-    printf("\n");
+    printf("\nExiting normally...\n");
     exit(status);
 }
