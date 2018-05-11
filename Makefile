@@ -13,14 +13,14 @@ build: main exec queue utils mkdir
 clean:
 	@ rm -f $(DDIR)/shell $(DDIR)/*.o
 
-main: $(SDIR)/main.c $(SDIR)/queue.h $(SDIR)/utils.h
+main: $(SDIR)/main.c $(SDIR)/vector.h $(SDIR)/utils.h
 	@ $(CC) $(CFLAG) $(SDIR)/main.c
 
 exec: $(SDIR)/exec.c $(SDIR)/exec.h
 	@ $(CC) $(CFLAG) $(SDIR)/exec.c
 
-queue: $(SDIR)/queue.c $(SDIR)/queue.h
-	@ $(CC) $(CFLAG) $(SDIR)/queue.c
+queue: $(SDIR)/vector.c $(SDIR)/vector.h
+	@ $(CC) $(CFLAG) $(SDIR)/vector.c
 
 utils: $(SDIR)/utils.c $(SDIR)/utils.h
 	@ $(CC) $(CFLAG) $(SDIR)/utils.c
