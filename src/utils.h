@@ -16,6 +16,8 @@
 #define min(a, b) (a > b ? b : a)
 #define max(a, b) (a > b ? a : b)
 
+#include "exec.h"
+
 struct OPTIONS {
     char log_out_path[BUF_SIZE], log_err_path[BUF_SIZE];
 };
@@ -23,8 +25,9 @@ struct OPTIONS {
 //PROTOTIPI FUNZIONI E PROCEDURE
 char* getuser();
 void printcolor(char *s, char *color);
-void print_help();
+int print_help();
 void write_to(int source, int log_file, int destination);
+void log_process(struct PROCESS p, char* cmd, int cmd_id, int subcmd_id, int* streams);
 char* get_prompt(char* prompt);
 struct OPTIONS read_options(int argc, char** argv);
 void sigHandler(int sig);

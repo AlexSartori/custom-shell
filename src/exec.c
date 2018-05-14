@@ -31,7 +31,7 @@ char* parse_alias(char* comando) {
     for(int i=0;i<vector_total(&vector_alias);i++) {
         elemento* tmp;
         tmp = (elemento*)vector_get(&vector_alias, i);
-        
+
         if(strcmp(token, tmp->name) == 0) {
             ok = 1;
             ns = (char*)malloc(sizeof(char)*(strlen(comando) + strlen(tmp->data)));
@@ -45,16 +45,16 @@ char* parse_alias(char* comando) {
             strcat(ns, "\0");
             break;
         }
-        
+
     }
-    
+
     if(ok == 0) return init;
     else return ns;
 }
 
 void list_alias() {
     elemento* tmp;
-    for(int i=0;i<vector_total(&vector_alias);i++) {     
+    for(int i=0;i<vector_total(&vector_alias);i++) {
         tmp = (elemento*)vector_get(&vector_alias, i);
         printf("%s = %s\n", tmp->name, tmp->data);
     }
@@ -80,30 +80,66 @@ void list_alias() {
 
 /*
     Elabora la linea di input dell'utente.
-    Se c'è un |, chiama due exec_line, altrimenti chiama fork_cmd e logga.
+    Se c'è un |, chiama exec_line ricorsivamente, altrimenti chiama
+    exec_cmd con il comando. La variabile LOG_CMD indica se trasferire
+    i buffer di stdout e stderr sui file di log o se roitornre la struct intatta.
 
     Returns:
         Struct con le info sul processo
 */
 struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, int log_err) {
-    // printf("----    Exec line: %s\n", line);
-
-    line = parse_alias(line);
+    static int LOG_CMD = 1;
+    struct PROCESS p, pre_pipe;
+    printf("----    Exec line: %s\n", line);
 
     // Cerco dal fondo se c'è un pipe
-    int i;
-    for (i = strlen(line); i >= 0; i--)
-        if (line[i] == '|')
-            break;
+    int i; for (i = strlen(line); i >= 0; i--) if (line[i] == '|') break;
 
+    if (i >= 0) { // C'è un | nella posizione i, splitto su i
+        line[i] = '\0';
+
+        // Disabilito il logging dell'output mentre eseguo ciò che sta a sinistra,
+        // perché mi serve un processo con lo stdout ancora tutto nel buffer.
+        int old_log_cmd = LOG_CMD;
+        LOG_CMD = 0;
+        pre_pipe = exec_line(line, cmd_id, subcmd_id, log_out, log_err);
+        LOG_CMD = old_log_cmd;
+        wait(&pre_pipe.status);
+        close(pre_pipe.stdin);
+    }
+
+    // Seconda parte del pipe o l'unico comando ricevuto
+    (*subcmd_id)++;
+    p = exec_cmd(line+(i+1));
+
+    if (i >= 0) {
+        // Piping
+        log_process(pre_pipe, line, cmd_id, (*subcmd_id)-1, (int[]){ log_out, log_err, p.stdin, 2 });
+        close(pre_pipe.stdout);
+        close(pre_pipe.stderr);
+        close(p.stdin);
+    }
+
+    if (LOG_CMD) {
+        wait(&p.status);
+        log_process(p, line+(i+1), cmd_id, *subcmd_id, (int[]){ log_out, log_err, 1, 2 });
+        close(p.stdout);
+        close(p.stderr);
+    }
+
+    return p;
+
+/*
     if (i >= 0) { // C'è un | nella posizione i
         struct PROCESS child1, child2;
         line[i] = '\0';
         child1 = exec_line(line, cmd_id, subcmd_id, log_out, log_err);
-        child2 = exec_line(line+(i+1), cmd_id, subcmd_id, log_out, log_err);
+        (*subcmd_id)++;
+        child2 = exec_cmd(line+(i+1), cmd_id);
 
         // Leggi stdout di child1 e scrivilo su stdin di child2
-        write_to(child1.stdout, log_out, child2.stdin);
+        // write_to(child1.stdout, log_out, child2.stdin);
+        log_process(child1, line, cmd_id, *subcmd_id, (int[]){ log_out, log_err, child2.stdin, 2 });
 
         close(child1.stdout);
         close(child1.stdin);
@@ -114,7 +150,7 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, in
     } else { // Non c'era nessun pipe
         (*subcmd_id)++;
         return exec_cmd(line, cmd_id);
-    }
+    }*/
 }
 
 
@@ -123,8 +159,9 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, in
     comando è una funzione interna.
     TODO magari espandendo variabili e percorsi
 */
-struct PROCESS exec_cmd(char* line, int cmd_id) {
-    // printf("----    exec_cmd #%d.%d: %s\n", cmd_id, subcmd_id, line);
+struct PROCESS exec_cmd(char* line) {
+    int retcode = 0;
+    printf("----    exec_cmd: %s\n", line);
     // Separo comando e argomenti
     char *copy_line = (char*) malloc(sizeof(char) * strlen(line));
     strcpy(copy_line, line);
@@ -146,7 +183,7 @@ struct PROCESS exec_cmd(char* line, int cmd_id) {
     else if (strcmp(args[0], "exit") == 0)
         exit(0); // shell_exit(0);
     else if (strcmp(args[0], "help") == 0)
-        print_help();
+        retcode = print_help(args[1]);
     else if (strcmp(args[0], "alias") == 0) {
         char *tmp = args[1];
         if(tmp == NULL) {
@@ -173,7 +210,7 @@ struct PROCESS exec_cmd(char* line, int cmd_id) {
             printf("Alias: %s\n", alias);
             printf("Content: %s\n", content);
             */
-            
+
             if(strlen(alias) == 0 || strlen(content) == 0) {
                 printcolor("! Errore: formato \'alias\'=\'command\'\n", KRED);
             } else {
@@ -183,19 +220,18 @@ struct PROCESS exec_cmd(char* line, int cmd_id) {
 
                 vector_add(&vector_alias, insert);
             }
-            
+
         }
     }
     else if (strcmp(args[0], "cd") == 0)
     {
-        int status = chdir(args[1]);
-        if(status == -1) {
+        retcode = chdir(args[1]);
+        if(retcode == -1) {
             printcolor("! Errore: cartella inesistente\n", KRED);
         }
     }
     else if (strcmp(args[0], "history") == 0)
     {
-        
         HIST_ENTRY** hist = history_list();
         char* hist_arg = strtok(NULL, " ");
         int n; // Quanti elementi della cronologia mostrare
@@ -206,13 +242,13 @@ struct PROCESS exec_cmd(char* line, int cmd_id) {
 
         for (int i = history_length - n; i < history_length; i++)
             printf("  %d\t%s\n", i + history_base, hist[i]->line);
-        
     }
     else {
         // È un comando shell
         return fork_cmd(args);
     }
-    return exec_cmd(";", cmd_id);
+
+    return exec_cmd(";");
 }
 
 

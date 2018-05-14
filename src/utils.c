@@ -7,6 +7,8 @@
 #include <getopt.h>
 #include <signal.h>
 #include <errno.h>
+#include <time.h>
+#include <sys/wait.h>
 
 #include "utils.h"
 
@@ -21,6 +23,52 @@ void write_to(int source, int log_file, int destination) {
         write(log_file, buf, r);
         write(destination, buf, r);
     }
+    free(buf);
+}
+
+
+/*
+    Logga e stampa le info sul processo
+
+    Streams:
+        0 = log_out
+        1 = log_err
+        2 = stdout
+        3 = stderr
+*/
+void log_process(struct PROCESS p, char* cmd, int cmd_id, int subcmd_id, int* streams) {
+    printf("Log process: %s\n", cmd);
+    char* buf = malloc(sizeof(char)*BUF_SIZE);
+    time_t curtime; time(&curtime);
+
+    //////////////////////   STDOUT   //////////////////////
+    // Scrivi intestazioni
+    write(streams[0], "\n\n=============================================\n", 48);
+    snprintf(buf, BUF_SIZE, "\
+        ID:        #%d.%d\n\
+        COMMAND:   %s\n\
+        DATE:      %s\
+        RET CODE:  %d\n\
+        OUTPUT:\n\n", cmd_id, subcmd_id, cmd, ctime(&curtime), p.status);
+    write(streams[0], buf, strlen(buf));
+
+    // Scrivi lo stdout del proc sugli output richiesti (stdout o stdin di un altro proc)
+    write_to(p.stdout, streams[0], streams[2]);
+
+
+    //////////////////////   STDERR   //////////////////////
+    // Scrivi intestazioni
+    write(streams[1], "\n\n=============================================\n", 48);
+    snprintf(buf, BUF_SIZE, "\
+        ID:        #%d.%d\n\
+        COMMAND:   %s\n\
+        DATE:      %s\
+        RET CODE:  %d\n\
+        STDERR:\n\n", cmd_id, subcmd_id, cmd, ctime(&curtime), p.status);
+    write(streams[1], buf, strlen(buf));
+
+    // Scrivi lo stdout del proc sugli output richiesti (stdout o stdin di un altro proc)
+    write_to(p.stderr, streams[1], streams[3]);
     free(buf);
 }
 
@@ -107,10 +155,12 @@ struct OPTIONS read_options(int argc, char** argv) {
 
 
 /*
-    Stampa l'aiuto
+    Se cmd è NULL, stampa l'aiuto sull'uso della shell, altrimenti un aiuto su cmd.
+    Se cmd è un comando interno stampa l'aiuto scritto, altrimenti chiama "man cmd".
 */
-void print_help() {
-    printf("\n\n\
+int print_help(char* cmd) {
+    if (cmd == NULL)
+        printf("\n\n\
                      C u s t o m   S h e l l\n\
                    Progetto Sistemi Operativi 1\n\n\n\
   Usage:\n\
@@ -121,6 +171,26 @@ void print_help() {
       -e, --errfile        File di log dello stderr dei comandi\n\
       -m, --maxsize        Dimensione massima in bytes dei file di log\n\
       -r, --retcode        Registra anche i codici di ritorno dei comandi\n\n\n");
+    else {
+        if (strcmp(cmd, "clear") == 0)
+            printf("clear: Clear the screen.");
+        else if (strcmp(cmd, "exit") == 0)
+            printf("exit: Terminate the session and exit the shell.");
+        else if (strcmp(cmd, "alias") == 0)
+            printf("alias <'a'='b'>: List aliases or register a=b.");
+        else if (strcmp(cmd, "cd") == 0)
+            printf("cd <dir>: Change the working directory.");
+        else if (strcmp(cmd, "history") == 0)
+            printf("history <n>: Show the full command history or the last N entries.");
+        else {
+            int pid = fork(), status;
+            if (pid < 0)  perror("Cannot call MAN");
+            if (pid == 0) exit(execvp("man", (char*[]) {"man", cmd, NULL}));
+            else wait(&status);
+            return status;
+        }
+    }
+    return 0;
 }
 
 

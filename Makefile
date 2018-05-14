@@ -7,11 +7,11 @@ DDIR= bin
 RL= -lreadline
 
 
-build: main exec queue utils mkdir
+build: main exec vector utils mkdir
 	@ $(CC) $(OFLAG) shell *.o $(RL) &&  mv *.o shell ./$(DDIR)
 
 clean:
-	@ rm -f $(DDIR)/shell $(DDIR)/*.o
+	@ rm -rf $(DDIR)
 
 main: $(SDIR)/main.c $(SDIR)/vector.h $(SDIR)/utils.h
 	@ $(CC) $(CFLAG) $(SDIR)/main.c
@@ -19,7 +19,7 @@ main: $(SDIR)/main.c $(SDIR)/vector.h $(SDIR)/utils.h
 exec: $(SDIR)/exec.c $(SDIR)/exec.h
 	@ $(CC) $(CFLAG) $(SDIR)/exec.c
 
-queue: $(SDIR)/vector.c $(SDIR)/vector.h
+vector: $(SDIR)/vector.c $(SDIR)/vector.h
 	@ $(CC) $(CFLAG) $(SDIR)/vector.c
 
 utils: $(SDIR)/utils.c $(SDIR)/utils.h
