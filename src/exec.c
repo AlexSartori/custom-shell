@@ -5,60 +5,10 @@
 #include <sys/wait.h>
 #include <readline/history.h>
 
+#include "internals.h"
 #include "utils.h"
 #include "exec.h"
 #include "vector.h"
-
-//PER TUTTA LA ROBA DEGLI ALIAS MEGLIO FARE UNA NUOVA LIBRERIA PRIMA O POI
-
-vector vector_alias;
-
-typedef struct elemento {
-    char* name;
-    char* data;
-} elemento;
-
-void vector_alias_initializer() {
-    vector_init(&vector_alias);
-}
-
-char* parse_alias(char* comando) {
-    char *init = (char*)malloc(sizeof(char)*(strlen(comando)));
-    strcpy(init, comando);
-    char* token = strtok(comando, " ");
-    char *ns;
-    int ok = 0;
-    for(int i=0;i<vector_total(&vector_alias);i++) {
-        elemento* tmp;
-        tmp = (elemento*)vector_get(&vector_alias, i);
-
-        if(strcmp(token, tmp->name) == 0) {
-            ok = 1;
-            ns = (char*)malloc(sizeof(char)*(strlen(comando) + strlen(tmp->data)));
-            strcpy(ns, tmp->data);
-            token = strtok(NULL, " ");
-            while(token) {
-                strcat(ns, " ");
-                strcat(ns, token);
-                token = strtok(NULL, " ");
-            }
-            strcat(ns, "\0");
-            break;
-        }
-
-    }
-
-    if(ok == 0) return init;
-    else return ns;
-}
-
-void list_alias() {
-    elemento* tmp;
-    for(int i=0;i<vector_total(&vector_alias);i++) {
-        tmp = (elemento*)vector_get(&vector_alias, i);
-        printf("%s = %s\n", tmp->name, tmp->data);
-    }
-}
 
 /*
     Funzionamento:
@@ -90,7 +40,7 @@ void list_alias() {
 struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, int log_err) {
     static int LOG_CMD = 1;
     struct PROCESS p, pre_pipe;
-    printf("----    Exec line: %s\n", line);
+    // printf("----    Exec line: %s\n", line);
 
     // Cerco dal fondo se c'è un pipe
     int i; for (i = strlen(line); i >= 0; i--) if (line[i] == '|') break;
@@ -128,29 +78,6 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, in
     }
 
     return p;
-
-/*
-    if (i >= 0) { // C'è un | nella posizione i
-        struct PROCESS child1, child2;
-        line[i] = '\0';
-        child1 = exec_line(line, cmd_id, subcmd_id, log_out, log_err);
-        (*subcmd_id)++;
-        child2 = exec_cmd(line+(i+1), cmd_id);
-
-        // Leggi stdout di child1 e scrivilo su stdin di child2
-        // write_to(child1.stdout, log_out, child2.stdin);
-        log_process(child1, line, cmd_id, *subcmd_id, (int[]){ log_out, log_err, child2.stdin, 2 });
-
-        close(child1.stdout);
-        close(child1.stdin);
-        close(child1.stderr);
-        close(child2.stdin);
-
-        return child2;
-    } else { // Non c'era nessun pipe
-        (*subcmd_id)++;
-        return exec_cmd(line, cmd_id);
-    }*/
 }
 
 
@@ -161,7 +88,8 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, in
 */
 struct PROCESS exec_cmd(char* line) {
     int retcode = 0;
-    printf("----    exec_cmd: %s\n", line);
+    // printf("----    exec_cmd: %s\n", line);
+
     // Separo comando e argomenti
     char *copy_line = (char*) malloc(sizeof(char) * strlen(line));
     strcpy(copy_line, line);
@@ -189,59 +117,20 @@ struct PROCESS exec_cmd(char* line) {
         if(tmp == NULL) {
             list_alias();
         } else {
-            char *alias = (char*)malloc(sizeof(char) * strlen(line));
-            char *content = (char*)malloc(sizeof(char) * strlen(line));
-            int active = 0;
-            int first = 1;
-            int alias_index = 0;
-            int content_index = 0;
-            for(int i=0;copy_line[i]!='\0';i++) {
-                if(active == 1 && first == 1) alias[alias_index++] = copy_line[i];
-                if(active == 1 && first == 0) content[content_index++] = copy_line[i];
-                if(copy_line[i] == '\'' && active == 0) active = 1;
-                else if(copy_line[i] == '\'' && active == 1) {
-                    active = 0;
-                    first = 0;
-                }
-            }
-            alias[alias_index-1] = '\0';
-            content[content_index-1] = '\0';
-            /*
-            printf("Alias: %s\n", alias);
-            printf("Content: %s\n", content);
-            */
-
-            if(strlen(alias) == 0 || strlen(content) == 0) {
-                printcolor("! Errore: formato \'alias\'=\'command\'\n", KRED);
-            } else {
-                elemento *insert = (elemento*)malloc(sizeof(elemento));
-                insert -> name = alias;
-                insert -> data = content;
-
-                vector_add(&vector_alias, insert);
-            }
-
+            make_alias(copy_line);
         }
     }
     else if (strcmp(args[0], "cd") == 0)
     {
         retcode = chdir(args[1]);
         if(retcode == -1) {
-            printcolor("! Errore: cartella inesistente\n", KRED);
+            printcolor("! Error: directory not found\n", KRED);
         }
     }
     else if (strcmp(args[0], "history") == 0)
     {
-        HIST_ENTRY** hist = history_list();
         char* hist_arg = strtok(NULL, " ");
-        int n; // Quanti elementi della cronologia mostrare
-
-        // Se non è specificato li mostro tutti
-        if (hist_arg == NULL) n = history_length;
-        else n = min(atoi(hist_arg), history_length);
-
-        for (int i = history_length - n; i < history_length; i++)
-            printf("  %d\t%s\n", i + history_base, hist[i]->line);
+        print_history(hist_arg);
     }
     else {
         // È un comando shell

@@ -24,6 +24,7 @@ struct OPTIONS {
 
 //PROTOTIPI FUNZIONI E PROCEDURE
 char* getuser();
+void string_tolower(char s[]);
 void printcolor(char *s, char *color);
 int print_help();
 void write_to(int source, int log_file, int destination);
@@ -31,5 +32,6 @@ void log_process(struct PROCESS p, char* cmd, int cmd_id, int subcmd_id, int* st
 char* get_prompt(char* prompt);
 struct OPTIONS read_options(int argc, char** argv);
 void sigHandler(int sig);
+int gest_pv (char **comandi, char *comando);
 
 #endif

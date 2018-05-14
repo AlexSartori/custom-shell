@@ -7,10 +7,45 @@
 #include <getopt.h>
 #include <signal.h>
 #include <errno.h>
+#include <ctype.h>
 #include <time.h>
 #include <sys/wait.h>
 
 #include "utils.h"
+
+/*
+    Converte una stringa in lowercase
+*/
+void string_tolower(char s[]) {
+    for(int i = 0; s[i]; i++){
+        s[i] = tolower(s[i]);
+    }
+}
+
+/* Legge il comando e splitta
+   in corrispondenza
+   di ';' eliminando gli spazi */
+int gest_pv (char **comandi, char *comando){
+    char* c = strtok(comando,";");
+    int cont_comandi = 0;
+    while (c){
+        int inizio = 0;
+        int fine = strlen(c);
+        if (fine == 0) continue; // Comando vuoto
+        while(c[inizio] == ' ' && inizio != fine) inizio++;
+        c = c + inizio;
+        if( inizio == fine) return cont_comandi; // Solo spazi
+        inizio = 0;
+        fine = strlen(c) - 1;
+        while( c[fine - 1] == ' ' && fine != inizio) fine --;
+        if( fine != inizio) c[fine + 1] = '\0';
+
+        comandi[cont_comandi] = c;
+        c = strtok(NULL,";");
+        cont_comandi++;
+    }
+    return cont_comandi;
+}
 
 
 /*
@@ -37,7 +72,6 @@ void write_to(int source, int log_file, int destination) {
         3 = stderr
 */
 void log_process(struct PROCESS p, char* cmd, int cmd_id, int subcmd_id, int* streams) {
-    printf("Log process: %s\n", cmd);
     char* buf = malloc(sizeof(char)*BUF_SIZE);
     time_t curtime; time(&curtime);
 
@@ -141,7 +175,7 @@ struct OPTIONS read_options(int argc, char** argv) {
                 fprintf(stderr, "Unknown option: %s\n", argv[optind-1]);
                 break;
             default:
-                fprintf(stderr, "Errore nella lettura delle opzioni (codice opzione: %c)\n", c);
+                fprintf(stderr, "Error reading options (option code: %c)\n", c);
                 break;
         }
     }
@@ -162,15 +196,15 @@ int print_help(char* cmd) {
     if (cmd == NULL)
         printf("\n\n\
                      C u s t o m   S h e l l\n\
-                   Progetto Sistemi Operativi 1\n\n\n\
+                      Operating Systems Lab\n\n\n\
   Usage:\n\
       ./shell <options>\n\n\
   Options:\n\
-      -h, --help           Mostra questo messaggio\n\
-      -o, --outfile        File di log dello stdout dei comandi\n\
-      -e, --errfile        File di log dello stderr dei comandi\n\
-      -m, --maxsize        Dimensione massima in bytes dei file di log\n\
-      -r, --retcode        Registra anche i codici di ritorno dei comandi\n\n\n");
+      -h, --help           Print this message\n\
+      -o, --outfile        Set path of the stdout log file\n\
+      -e, --errfile        Set path of the err log file\n\
+      -m, --maxsize        Set the max size of the log files\n\
+      -r, --retcode        Save the exit code of the commands\n\n\n");
     else {
         if (strcmp(cmd, "clear") == 0)
             printf("clear: Clear the screen.");

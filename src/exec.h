@@ -15,7 +15,4 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, in
 struct PROCESS exec_cmd(char* line);
 struct PROCESS fork_cmd(char** args);
 
-void vector_alias_initializer();
-char* parse_alias(char* comando);
-
 #endif

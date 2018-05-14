@@ -11,6 +11,7 @@
 #include "exec.h"
 #include "utils.h"
 #include "vector.h"
+#include "internals.h"
 
 
 // Buffer per l'input dell'utente e il prompt
@@ -29,33 +30,6 @@ void init_shell(struct OPTIONS opt) {
     log_err = open(opt.log_err_path, O_RDWR | O_CREAT, 0644);
 }
 
-// Legge il comando e splitta in corrispondenza di ';' eliminando gli spazi
-int gest_pv (char **comandi){
-    char* c = strtok(comando,";");
-    int cont_comandi = 0;
-    while (c){
-        int inizio = 0;
-        int fine = strlen(c);
-        if (fine == 0) continue; // Comando vuoto
-        while(c[inizio] == ' ' && inizio != fine) inizio++;
-        c = c + inizio;
-        if( inizio == fine){     // Solo spazi
-            c = strtok(NULL,";");
-            continue;
-        }
-        inizio = 0;
-        fine = strlen(c) - 1;
-        while( c[fine - 1] == ' ' && fine != inizio) fine --;
-        if( fine != inizio) c[fine + 1] = '\0';
-
-        comandi[cont_comandi] = c;
-        c = strtok(NULL,";");
-        cont_comandi++;
-    }
-return cont_comandi;
-}
-
-
 void shell_exit(int status) {
     printf("\nExiting normally...\n");
     // Libera i buffer
@@ -67,11 +41,9 @@ void shell_exit(int status) {
     exit(status);
 }
 
-
 void sigHandler(int sig) {
     shell_exit(0);
 }
-
 
 int main(int argc, char** argv) {
     struct OPTIONS opt = read_options(argc, argv);
@@ -81,12 +53,15 @@ int main(int argc, char** argv) {
     while(1) {
         get_prompt(prompt);
         comando = readline(prompt);
+
         if (comando == NULL) break; // Era una linea vuota
         if (strlen(comando) == 0) continue; // Invio
-
-
+        
         // Gestisco history
         add_history(comando);
+
+        // Case insensitive
+        string_tolower(comando);
 
         // Controlla se ci sono punto e virgola
         int pv = 0;
@@ -94,16 +69,16 @@ int main(int argc, char** argv) {
         for(int i = 0; comando[i] != '\0'; i++) if(comando[i] == ';') pv++;
         char* comandi[pv + 1];
         if (pv!=0) {
-            cont = gest_pv(comandi);
+            cont = gest_pv(comandi, comando);
         } else {
             cont = 1;
             comandi[cont - 1] = comando;
         }
 
-        for (int j=0; j<cont; j++) {
+        for (int j=0; j<cont; j++){
             cmd_id++;
             subcmd_id = 0;
-
+            
             if(comandi[j] == NULL || strlen(comandi[j]) == 0 ) continue;
             char tmp[BUF_SIZE]; strcpy(tmp, comandi[j]);
 
@@ -112,7 +87,6 @@ int main(int argc, char** argv) {
             for (int k=0; k<strlen(comandi[j]); k++) if (comandi[j][k]== ' ') spazi++;
             if (strlen(comandi[j]) == spazi) continue;
 
-            comandi[j] = parse_alias(comandi[j]);
             struct PROCESS p = exec_line(comandi[j], cmd_id, &subcmd_id, log_out, log_err);
         }
     }

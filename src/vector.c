@@ -17,10 +17,6 @@ int vector_total(vector *v)
 
 static void vector_resize(vector *v, int capacity)
 {
-    #ifdef DEBUG_ON
-    printf("vector_resize: %d to %d\n", v->capacity, capacity);
-    #endif
-
     void **items = realloc(v->items, sizeof(void *) * capacity);
     if (items) {
         v->items = items;
