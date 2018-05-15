@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <readline/history.h>
 
 #include "utils.h"
@@ -12,6 +13,10 @@ vector vector_alias;
 
 void vector_alias_initializer() {
     vector_init(&vector_alias);
+}
+
+int cd(char* dir) {
+    return chdir(dir);
 }
 
 char* parse_alias(char* comando) {
@@ -44,12 +49,13 @@ char* parse_alias(char* comando) {
     else return ns;
 }
 
-void list_alias() {
+int list_alias() {
     elemento* tmp;
     for(int i=0;i<vector_total(&vector_alias);i++) {
         tmp = (elemento*)vector_get(&vector_alias, i);
         printf("%s = %s\n", tmp->name, tmp->data);
     }
+    return 0;
 }
 
 int search_alias(elemento* el) {
@@ -68,7 +74,7 @@ int search_alias(elemento* el) {
 }
 
 
-void make_alias(char *copy_line) {
+int make_alias(char *copy_line) {
 	char *alias = (char*)malloc(sizeof(char) * strlen(copy_line));
     char *content = (char*)malloc(sizeof(char) * strlen(copy_line));
     int active = 0;
@@ -99,9 +105,11 @@ void make_alias(char *copy_line) {
             vector_add(&vector_alias, insert);
         }
     }
+
+    return 0;
 }
 
-void print_history(char *hist_arg) {
+int print_history(char *hist_arg) {
 	HIST_ENTRY** hist = history_list();
     int n; // Quanti elementi della cronologia mostrare
 
@@ -111,4 +119,6 @@ void print_history(char *hist_arg) {
 
     for (int i = history_length - n; i < history_length; i++)
         printf("  %d\t%s\n", i + history_base, hist[i]->line);
+
+    return 0;
 }

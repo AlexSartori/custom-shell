@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
 
         if (comando == NULL) break; // Era una linea vuota
         if (strlen(comando) == 0) continue; // Invio
-        
+
         // Gestisco history
         add_history(comando);
 
@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
         for (int j=0; j<cont; j++){
             cmd_id++;
             subcmd_id = 0;
-            
+
             if(comandi[j] == NULL || strlen(comandi[j]) == 0 ) continue;
             char tmp[BUF_SIZE]; strcpy(tmp, comandi[j]);
 
@@ -88,6 +88,7 @@ int main(int argc, char** argv) {
             if (strlen(comandi[j]) == spazi) continue;
 
             struct PROCESS p = exec_line(comandi[j], cmd_id, &subcmd_id, log_out, log_err);
+            if (p.status != 0) printcolor("! Error: Cannot execute command.\n", KRED);
         }
     }
 

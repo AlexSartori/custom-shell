@@ -12,7 +12,6 @@
 #define KMAG  "\x1B[35m"
 #define KCYN  "\x1B[36m"
 #define KWHT  "\x1B[37m"
-#define clear() printf("\033[H\033[J")
 #define min(a, b) (a > b ? b : a)
 #define max(a, b) (a > b ? a : b)
 
@@ -23,6 +22,8 @@ struct OPTIONS {
 };
 
 //PROTOTIPI FUNZIONI E PROCEDURE
+
+int clear();
 char* getuser();
 void string_tolower(char s[]);
 void printcolor(char *s, char *color);

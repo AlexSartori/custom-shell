@@ -207,15 +207,15 @@ int print_help(char* cmd) {
       -r, --retcode        Save the exit code of the commands\n\n\n");
     else {
         if (strcmp(cmd, "clear") == 0)
-            printf("clear: Clear the screen.");
+            printf("clear: Clear the screen.\n");
         else if (strcmp(cmd, "exit") == 0)
-            printf("exit: Terminate the session and exit the shell.");
+            printf("exit: Terminate the session and exit the shell.\n");
         else if (strcmp(cmd, "alias") == 0)
-            printf("alias <'a'='b'>: List aliases or register a=b.");
+            printf("alias <'a'='b'>: List aliases or register a=b.\n");
         else if (strcmp(cmd, "cd") == 0)
-            printf("cd <dir>: Change the working directory.");
+            printf("cd <dir>: Change the working directory.\n");
         else if (strcmp(cmd, "history") == 0)
-            printf("history <n>: Show the full command history or the last N entries.");
+            printf("history <n>: Show the full command history or the last N entries.\n");
         else {
             int pid = fork(), status;
             if (pid < 0)  perror("Cannot call MAN");
@@ -227,6 +227,14 @@ int print_help(char* cmd) {
     return 0;
 }
 
+
+/*
+    Clear the console.
+*/
+int clear() {
+    printf("\033[H\033[J");
+    return 0;
+}
 
 /*
     Ritorna il nome dell'utente attivo (altrimenti la stringa "user")

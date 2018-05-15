@@ -7,7 +7,7 @@ DDIR= bin
 RL= -lreadline
 
 
-build: main exec vector utils mkdir
+build: main exec vector internals utils mkdir
 	@ $(CC) $(OFLAG) shell *.o $(RL) &&  mv *.o shell ./$(DDIR)
 
 clean:
@@ -21,6 +21,9 @@ exec: $(SDIR)/exec.c $(SDIR)/exec.h
 
 vector: $(SDIR)/vector.c $(SDIR)/vector.h
 	@ $(CC) $(CFLAG) $(SDIR)/vector.c
+
+internals: $(SDIR)/internals.c $(SDIR)/internals.h
+	@ $(CC) $(CFLAG) $(SDIR)/internals.c
 
 utils: $(SDIR)/utils.c $(SDIR)/utils.h
 	@ $(CC) $(CFLAG) $(SDIR)/utils.c
