@@ -140,9 +140,11 @@ struct OPTIONS read_options(int argc, char** argv) {
         { 0, 0, 0, 0 } // Serve come delimitatore finale dell'array
     };
 
-    struct OPTIONS ret; // Contenitore delle opzioni da ritornare, lo riempio coi deafult
+    struct OPTIONS ret; // Contenitore delle opzioni da ritornare.
+    // Lo riempio con i deafult
     strcpy(ret.log_out_path, "log_stdout.txt");
     strcpy(ret.log_err_path, "log_stderr.txt");
+    ret.max_size = 5 * 1024 * 1024; // 5MB
 
     char c;
     int indexptr;
@@ -163,6 +165,7 @@ struct OPTIONS read_options(int argc, char** argv) {
                 break;
             case 'm':
                 printf("  Max Size:\t%s [bytes]\n", optarg);
+                ret.max_size = atoi(optarg);
                 break;
             case 'r':
                 printf("  Record process return code: yes\n");

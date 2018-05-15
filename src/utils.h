@@ -19,6 +19,7 @@
 
 struct OPTIONS {
     char log_out_path[BUF_SIZE], log_err_path[BUF_SIZE];
+    int max_size;
 };
 
 //PROTOTIPI FUNZIONI E PROCEDURE

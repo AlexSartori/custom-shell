@@ -7,6 +7,8 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "exec.h"
 #include "utils.h"
@@ -90,6 +92,16 @@ int main(int argc, char** argv) {
             struct PROCESS p = exec_line(comandi[j], cmd_id, &subcmd_id, log_out, log_err);
             if (p.status != 0) printcolor("! Error: Cannot execute command.\n", KRED);
         }
+
+        // Controllo dimensione dei file
+        struct stat buffer;
+        if(stat(opt.log_out_path, &buffer) == 0)
+            if (buffer.st_size > opt.max_size)
+                printcolor("Il file di log dello stdout ha raggiunto la dimensione massima!\n", KRED);
+        if(stat(opt.log_err_path, &buffer) == 0)
+            if (buffer.st_size > opt.max_size)
+                printcolor("Il file di log dello stderr ha raggiunto la dimensione massima!\n", KRED);
+
     }
 
     // Pulisci tutto ed esci
