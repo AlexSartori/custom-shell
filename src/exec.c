@@ -87,7 +87,7 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, in
     TODO magari espandendo variabili e percorsi
 */
 struct PROCESS exec_cmd(char* line) {
-    int retcode = 0;
+    struct PROCESS dummy; // = fork_cmd((char*[]) {";", NULL});
     // printf("----    exec_cmd: %s\n", line);
 
     // Separo comando e argomenti
@@ -117,19 +117,18 @@ struct PROCESS exec_cmd(char* line) {
         if(tmp == NULL) {
             return exec_internal(list_alias, NULL);
         } else {
-            return exec_internal(make_alias, copy_line);
+            dummy.status = make_alias(copy_line);
         }
-    }
-    else if (strcmp(args[0], "cd") == 0) {
-        return exec_internal(cd, args[1]);
-    }
-    else if (strcmp(args[0], "history") == 0) {
+    } else if (strcmp(args[0], "cd") == 0) {
+        dummy.status = chdir(args[1]);
+    } else if (strcmp(args[0], "history") == 0) {
         return exec_internal(print_history, args[1]);
-    }
-    else {
+    } else {
         // È un comando shell
         return fork_cmd(args);
     }
+
+    return dummy;
 }
 
 
@@ -177,6 +176,7 @@ struct PROCESS exec_internal(int (*f)(char*), char* arg) {
         p.stdin  = child_in[PIPE_WRITE];
         p.stdout = child_out[PIPE_READ];
         p.stderr = child_err[PIPE_READ];
+        //wait(&p.status);
         return p;
     }
 }

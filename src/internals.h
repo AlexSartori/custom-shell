@@ -8,7 +8,6 @@ typedef struct elemento {
 
 
 void vector_alias_initializer();
-int cd(char* dir);
 char* parse_alias(char* comando);
 int list_alias();
 int make_alias(char *copy_line);

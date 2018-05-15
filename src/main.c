@@ -101,7 +101,6 @@ int main(int argc, char** argv) {
         if(stat(opt.log_err_path, &buffer) == 0)
             if (buffer.st_size > opt.max_size)
                 printcolor("Il file di log dello stderr ha raggiunto la dimensione massima!\n", KRED);
-
     }
 
     // Pulisci tutto ed esci

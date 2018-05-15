@@ -15,10 +15,6 @@ void vector_alias_initializer() {
     vector_init(&vector_alias);
 }
 
-int cd(char* dir) {
-    return chdir(dir);
-}
-
 char* parse_alias(char* comando) {
     char *init = (char*)malloc(sizeof(char)*(strlen(comando)));
     strcpy(init, comando);
