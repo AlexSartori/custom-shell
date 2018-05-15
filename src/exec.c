@@ -44,6 +44,8 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, in
 
     // Cerco dal fondo se c'è un pipe
     int i; for (i = strlen(line); i >= 0; i--) if (line[i] == '|') break;
+    // Tolgo gli spazi finali (così se l'ultimo carattere era | mi rimane una stringa vuota)
+    // for (int g = strlen(line); g >= i; g--) if (line[g] == ' ') line[g] = '\0'; else break;
 
     if (i >= 0) { // C'è un | nella posizione i, splitto su i
         line[i] = '\0';

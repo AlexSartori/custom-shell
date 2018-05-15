@@ -89,6 +89,13 @@ int main(int argc, char** argv) {
             for (int k=0; k<strlen(comandi[j]); k++) if (comandi[j][k]== ' ') spazi++;
             if (strlen(comandi[j]) == spazi) continue;
 
+            // Tolgo gli spazi finali
+            int t = strlen(comandi[j]) - 1;
+            while (comandi[j][t] == ' ') t--;
+            comandi[j][t+1] = '\0';
+            // Se l'ultimo carattere è un pipe lo tolgo
+            if (comandi[j][t] == '|') comandi[j][t] = '\0';
+
             struct PROCESS p = exec_line(comandi[j], cmd_id, &subcmd_id, log_out, log_err);
             if (p.status != 0) printcolor("! Error: Cannot execute command.\n", KRED);
         }
