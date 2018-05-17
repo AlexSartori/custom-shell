@@ -44,8 +44,6 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, in
 
     // Cerco dal fondo se c'è un pipe
     int i; for (i = strlen(line); i >= 0; i--) if (line[i] == '|') break;
-    // Tolgo gli spazi finali (così se l'ultimo carattere era | mi rimane una stringa vuota)
-    // for (int g = strlen(line); g >= i; g--) if (line[g] == ' ') line[g] = '\0'; else break;
 
     if (i >= 0) { // C'è un | nella posizione i, splitto su i
         line[i] = '\0';
@@ -60,9 +58,17 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, in
         close(pre_pipe.stdin);
     }
 
-    // Seconda parte del pipe o l'unico comando ricevuto
     (*subcmd_id)++;
-    p = exec_cmd(line+(i+1));
+    // Seconda parte del pipe o l'unico comando ricevuto
+    if (line[strlen(line+i+1)-1] == '&') {
+        // L'ultimo carattere è un &, lo eseguo ma non aspetto e ritorno
+        line[strlen(line+i+1)-1] = '\0';
+        printf("Running in backgound: %s\n", line+i+1);
+        return exec_cmd(line+(i+1));
+    } else {
+        p = exec_cmd(line+(i+1));
+    }
+
 
     if (i >= 0) {
         // Piping
@@ -105,6 +111,9 @@ struct PROCESS exec_cmd(char* line) {
         i++;
     }
     args[i] = NULL;
+
+    // Case insensitive
+    string_tolower(args[0]);
 
     // Controllo se è un comando che voglio gestire internamente
     // TODO anche questi devono avere I/O su file?

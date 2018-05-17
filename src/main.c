@@ -62,9 +62,6 @@ int main(int argc, char** argv) {
         // Gestisco history
         add_history(comando);
 
-        // Case insensitive
-        string_tolower(comando);
-
         // Controlla se ci sono punto e virgola
         int pv = 0;
         int cont = 0;
@@ -82,7 +79,16 @@ int main(int argc, char** argv) {
             subcmd_id = 0;
 
             if(comandi[j] == NULL || strlen(comandi[j]) == 0 ) continue;
-            char tmp[BUF_SIZE]; strcpy(tmp, comandi[j]);
+            //char tmp[BUF_SIZE]; strcpy(tmp, comandi[j]);
+
+            //Gestici &&
+            int br;
+            br = gest_and(comandi[j], &cmd_id, subcmd_id , log_out, log_err);
+            if (br == -1){
+                 continue; // Ho incontrato break nell'&&
+            } else {
+                 comandi[j]= comandi[j] + br;
+            }
 
             // Controlla se il comando è fatto di soli spazi
             int spazi = 0;
