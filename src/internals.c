@@ -106,6 +106,7 @@ int make_alias(char *copy_line) {
 }
 
 int print_history(char *hist_arg) {
+    
 	HIST_ENTRY** hist = history_list();
     int n; // Quanti elementi della cronologia mostrare
 
@@ -117,4 +118,133 @@ int print_history(char *hist_arg) {
         printf("  %d\t%s\n", i + history_base, hist[i]->line);
 
     return 0;
+    
+}
+
+char *expand_wildcar(char *s) {
+    char *ns = (char* ) malloc(sizeof(char) * 1024);
+    char *search = (char* ) malloc(sizeof(char) * 1024);
+    int tmp = 0;
+    int found = 0;
+    int letters_before = 0;
+    int letters_after = 0;
+    for(int i=0; s[i]; i++) {
+        if(s[i] == ' ') tmp = 0;
+        else tmp++;
+
+        if(found > 0) letters_after++;
+
+        if(s[i] == '*' && found == 0) {
+            letters_before = tmp;
+            found++;
+        } else if(s[i] == '*' && found > 0) {
+            found++;
+        }
+    }
+
+    if(found > 2) {
+        ns[0] = '\0';
+        printf("ERROR\n");
+        return ns;
+    }
+
+    if(found == 0) {
+        free(ns);
+        return s;
+    }
+
+    if(found == 1 && letters_before == 1) {
+        for(int i=0; s[i]; i++) {
+            if(s[i] != '*') ns[i] = s[i];
+            else {
+                i++;
+                int pos = 0;
+                while(s[i] != ' ' && s[i] != '\0') {
+                    search[pos] = s[i];
+                    i++;
+                    pos++;
+                }
+                search[pos] = '\0';
+                break;
+            }
+        }
+        snprintf(ns, 1024, "%s | grep %s$", ns, search);
+        //printf("%s\n", ns);
+    }
+
+    if(found == 1 && letters_before != 1 && letters_after == 0) {
+        for(int i=0; s[i]; i++) {
+            if(s[i] != '*') ns[i] = s[i];
+            else {
+                int tmp = i;
+                while(ns[tmp] != ' ') tmp--;
+                ns[tmp] = '\0';
+                i--;
+                int pos = letters_before - 2;
+                while(s[i] != ' ') {
+                    search[pos] = s[i];
+                    i--;
+                    pos--;
+                }
+                search[letters_before - 1] = '\0';
+                break;
+            }
+        }
+        snprintf(ns, 1024, "%s | grep ^%s", ns, search);
+        //printf("%s\n", ns);
+    }
+
+    if(found == 2) {
+        for(int i=0; s[i]; i++) {
+            if(s[i] != '*') ns[i] = s[i];
+            else {
+                i++;
+                int pos = 0;
+                while(s[i] != ' ' && s[i] != '\0' && s[i] != '*') {
+                    search[pos] = s[i];
+                    i++;
+                    pos++;
+                }
+                search[pos] = '\0';
+                break;
+            }
+        }
+        snprintf(ns, 1024, "%s | grep %s", ns, search);
+        //printf("%s\n", ns);
+    }
+
+    if(found == 1 && letters_before != 1 && letters_after != 0) {
+        char *search1 = (char* ) malloc(sizeof(char) * 1024);
+        for(int i=0; s[i]; i++) {
+            if(s[i] != '*') ns[i] = s[i];
+            else {
+                int tmp = i;
+                int start = i+1;
+                while(ns[tmp] != ' ') tmp--;
+                ns[tmp] = '\0';
+                i--;
+                int pos = letters_before - 2;
+                while(s[i] != ' ') {
+                    search[pos] = s[i];
+                    i--;
+                    pos--;
+                }
+                i = start;
+                int pos2 = 0;
+                while(s[i] != ' ' && s[i] != '\0') {
+                    search1[pos2] = s[i];
+                    i++;
+                    pos2++;
+                }
+                search1[pos2] = '\0';
+                search[letters_before - 1] = '\0';
+                break;
+            }
+        }
+        snprintf(ns, 1024, "%s | grep ^%s | grep %s$", ns, search, search1);
+        //printf("%s\n", ns);
+    }
+
+
+    return ns;
 }

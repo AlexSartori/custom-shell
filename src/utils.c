@@ -37,7 +37,7 @@ int gest_pv (char **comandi, char *comando){
         if( inizio == fine){ // Solo spazi
 	     c = strtok(NULL,";");
          continue;
-	    }       
+	    }
         inizio = 0;
         fine = strlen(c) - 1;
         while( c[fine - 1] == ' ' && fine != inizio) fine --;
@@ -50,19 +50,19 @@ int gest_pv (char **comandi, char *comando){
     return cont_comandi;
 }
 
-// 
-int gest_and(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err){
+//
+int gest_and(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err) {
     int i = 0;
     int br = 0;
     int length= strlen(c);
     char tmp[length];
-                    
+
     while (i < length && length > 0){
         strcpy(tmp,c);
         if (c[i] == '&' && c[i+1] == '&' && i!= length - 1) {
             tmp[i] = '\0';
             struct PROCESS p1 = exec_line(tmp, *(cmd_id), &subcmd_id, log_out, log_err);
-                            
+
             if( p1.status != 0 ){
                 printcolor("! Error: Cannot execute command.\n", KRED);
                 br = -1;

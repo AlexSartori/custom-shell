@@ -13,5 +13,6 @@ int list_alias();
 int make_alias(char *copy_line);
 int print_history(char *hist_arg);
 int search_alias(elemento* el);
+char *expand_wildcar(char *s);
 
 #endif

@@ -23,17 +23,22 @@ int cmd_id = 0, subcmd_id = 0; // ID incrementale del comando, per il file di lo
 
 void init_shell(struct OPTIONS opt) {
     comando = (char *)malloc(BUF_SIZE*sizeof(char)),
-    //tab autocomplete
+    running_tasks = 0;
+
+    // Tab autocomplete
     rl_bind_key('\t', rl_complete);
+
     // Catch Ctrl-C
     signal(SIGINT, sigHandler);
+
     // Apri i file di log
-    log_out = open(opt.log_out_path, O_RDWR | O_CREAT, 0644);
-    log_err = open(opt.log_err_path, O_RDWR | O_CREAT, 0644);
+    log_out = open(opt.log_out_path, O_RDWR | O_CREAT | O_APPEND, 0644);
+    log_err = open(opt.log_err_path, O_RDWR | O_CREAT | O_APPEND, 0644);
 }
 
+
 void shell_exit(int status) {
-    printf("\nExiting normally...\n");
+    printf("\n");
     // Libera i buffer
     free(comando);
     // Chiudi i file
@@ -43,9 +48,16 @@ void shell_exit(int status) {
     exit(status);
 }
 
+
 void sigHandler(int sig) {
-    shell_exit(0);
+    // printf("Parent (%d) received signal: %d\n", getpid(), sig);
+    if (sig == 9 || sig == 15) // SIGKILL o SIGTERM
+        shell_exit(0);
+    else if (sig == 2 && running_tasks == 0)
+        // Ctrl-C (SIGINT) e nessun processo in esecuzione -> faccio uscire la shell
+        shell_exit(0);
 }
+
 
 int main(int argc, char** argv) {
     struct OPTIONS opt = read_options(argc, argv);
@@ -61,6 +73,12 @@ int main(int argc, char** argv) {
 
         // Gestisco history
         add_history(comando);
+
+        // Gestisco alias
+        comando = parse_alias(comando);
+
+        comando = expand_wildcar(comando);
+
 
         // Controlla se ci sono punto e virgola
         int pv = 0;
@@ -79,9 +97,8 @@ int main(int argc, char** argv) {
             subcmd_id = 0;
 
             if(comandi[j] == NULL || strlen(comandi[j]) == 0 ) continue;
-            //char tmp[BUF_SIZE]; strcpy(tmp, comandi[j]);
 
-            //Gestici &&
+            // Gestici &&
             int br;
             br = gest_and(comandi[j], &cmd_id, subcmd_id , log_out, log_err);
             if (br == -1){
@@ -99,8 +116,21 @@ int main(int argc, char** argv) {
             int t = strlen(comandi[j]) - 1;
             while (comandi[j][t] == ' ') t--;
             comandi[j][t+1] = '\0';
-            // Se l'ultimo carattere è un pipe lo tolgo
-            if (comandi[j][t] == '|') comandi[j][t] = '\0';
+
+            if (comandi[j][t] == '&') {
+                comandi[j][t] = '\0';
+
+                if (fork() == 0) {
+                    printf("Running in backgound: %s\n", comandi[j]);
+
+                    int n = open("/dev/null", O_RDWR);
+                    dup2(n, 1);
+                    dup2(n, 2);
+                    exit(exec_line(comandi[j], cmd_id, &subcmd_id, n, n).status);
+                }
+
+                continue;
+            }
 
             struct PROCESS p = exec_line(comandi[j], cmd_id, &subcmd_id, log_out, log_err);
             if (p.status != 0) printcolor("! Error: Cannot execute command.\n", KRED);

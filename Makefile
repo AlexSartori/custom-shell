@@ -5,10 +5,11 @@ OFLAG= -o
 SDIR= src
 DDIR= bin
 RL= -lreadline
+GNU= -std=gnu90
 
 
 build: main exec vector internals utils mkdir
-	@ $(CC) $(OFLAG) shell *.o $(RL) &&  mv *.o shell ./$(DDIR)
+	@ $(CC) $(OFLAG) shell *.o $(RL) $(GNU) &&  mv *.o shell ./$(DDIR)
 
 clean:
 	@ rm -rf $(DDIR)

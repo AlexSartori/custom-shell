@@ -28,6 +28,10 @@
 */
 
 
+void signal_child(int sig) {
+    printf("Process %d received signal %d\n", getpid(), sig);
+}
+
 /*
     Elabora la linea di input dell'utente.
     Se c'è un |, chiama exec_line ricorsivamente, altrimenti chiama
@@ -40,7 +44,13 @@
 struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, int log_err) {
     static int LOG_CMD = 1;
     struct PROCESS p, pre_pipe;
+    running_tasks++;
     // printf("----    Exec line: %s\n", line);
+    // printf("Running tasks: %d\n", running_tasks);
+
+
+    // Finché l'ultimo carattere è un pipe o uno spazio, lo tolgo
+    while (line[strlen(line)-1] == '|' || line[strlen(line)-1] == ' ') line[strlen(line)-1] = '\0';
 
     // Cerco dal fondo se c'è un pipe
     int i; for (i = strlen(line); i >= 0; i--) if (line[i] == '|') break;
@@ -58,17 +68,9 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, in
         close(pre_pipe.stdin);
     }
 
-    (*subcmd_id)++;
     // Seconda parte del pipe o l'unico comando ricevuto
-    if (line[strlen(line+i+1)-1] == '&') {
-        // L'ultimo carattere è un &, lo eseguo ma non aspetto e ritorno
-        line[strlen(line+i+1)-1] = '\0';
-        printf("Running in backgound: %s\n", line+i+1);
-        return exec_cmd(line+(i+1));
-    } else {
-        p = exec_cmd(line+(i+1));
-    }
-
+    (*subcmd_id)++;
+    p = exec_cmd(line+(i+1));
 
     if (i >= 0) {
         // Piping
@@ -85,6 +87,7 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, in
         close(p.stderr);
     }
 
+    running_tasks--;
     return p;
 }
 
@@ -159,6 +162,8 @@ struct PROCESS exec_internal(int (*f)(char*), char* arg) {
     if ((pid = fork())  < 0) perror("Cannot create child");
 
     if (pid == 0) { // Child
+        signal(SIGINT, signal_child);
+
         // Chiudi pipe-end che non servono
         close(child_in[PIPE_WRITE]);
         close(child_out[PIPE_READ]);
