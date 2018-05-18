@@ -6,10 +6,10 @@
 #include <sys/wait.h>
 #include <readline/history.h>
 
-#include "internals.h"
-#include "utils.h"
-#include "exec.h"
-#include "vector.h"
+#include "../headers/internals.h"
+#include "../headers/utils.h"
+#include "../headers/exec.h"
+#include "../headers/vector.h"
 
 /*
     Funzionamento:

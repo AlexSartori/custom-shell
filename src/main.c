@@ -10,10 +10,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "exec.h"
-#include "utils.h"
-#include "vector.h"
-#include "internals.h"
+#include "../headers/exec.h"
+#include "../headers/utils.h"
+#include "../headers/vector.h"
+#include "../headers/internals.h"
 
 
 // Buffer per l'input dell'utente e il prompt

@@ -4,9 +4,9 @@
 #include <unistd.h>
 #include <readline/history.h>
 
-#include "utils.h"
-#include "vector.h"
-#include "internals.h"
+#include "../headers/utils.h"
+#include "../headers/vector.h"
+#include "../headers/internals.h"
 
 
 vector vector_alias;

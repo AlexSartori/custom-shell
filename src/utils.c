@@ -11,7 +11,7 @@
 #include <time.h>
 #include <sys/wait.h>
 
-#include "utils.h"
+#include "../headers/utils.h"
 
 /*
     Converte una stringa in lowercase
@@ -65,7 +65,7 @@ int gest_and(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err) {
             struct PROCESS p1 = exec_line(tmp, *(cmd_id), &subcmd_id, log_out, log_err);
 
             if( p1.status != 0 ){
-                printcolor("! Error: Cannot execute command.\n", KRED);
+                printcolor("! Error: One of the command failed.\n", KRED);
                 br = -1;
                 break;
             } else {
