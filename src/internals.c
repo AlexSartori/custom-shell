@@ -20,8 +20,8 @@ char* parse_alias(char* comando) {
     strcpy(init, comando);
     char* token = strtok(comando, " ");
     char *ns;
-    int ok = 0;
-    for(int i=0;i<vector_total(&vector_alias);i++) {
+    int ok = 0, i;
+    for(i=0;i<vector_total(&vector_alias);i++) {
         elemento* tmp;
         tmp = (elemento*)vector_get(&vector_alias, i);
 
@@ -47,7 +47,8 @@ char* parse_alias(char* comando) {
 
 int list_alias() {
     elemento* tmp;
-    for(int i=0;i<vector_total(&vector_alias);i++) {
+    int i;
+    for(i=0; i<vector_total(&vector_alias); i++) {
         tmp = (elemento*)vector_get(&vector_alias, i);
         printf("%s = %s\n", tmp->name, tmp->data);
     }
@@ -55,7 +56,8 @@ int list_alias() {
 }
 
 int search_alias(elemento* el) {
-    for(int i=0;i<vector_total(&vector_alias);i++) {
+    int i;
+    for(i=0; i<vector_total(&vector_alias); i++) {
         elemento* tmp;
         tmp = (elemento*)vector_get(&vector_alias, i);
 
@@ -73,11 +75,9 @@ int search_alias(elemento* el) {
 int make_alias(char *copy_line) {
 	char *alias = (char*)malloc(sizeof(char) * strlen(copy_line));
     char *content = (char*)malloc(sizeof(char) * strlen(copy_line));
-    int active = 0;
-    int first = 1;
-    int alias_index = 0;
-    int content_index = 0;
-    for(int i=0;copy_line[i]!='\0';i++) {
+    int active = 0, first = 1, alias_index = 0, content_index = 0, i;
+
+    for(i=0; copy_line[i]!='\0'; i++) {
         if(active == 1 && first == 1) alias[alias_index++] = copy_line[i];
         if(active == 1 && first == 0) content[content_index++] = copy_line[i];
         if(copy_line[i] == '\'' && active == 0) active = 1;
@@ -106,7 +106,7 @@ int make_alias(char *copy_line) {
 }
 
 int print_history(char *hist_arg) {
-    
+
 	HIST_ENTRY** hist = history_list();
     int n; // Quanti elementi della cronologia mostrare
 
@@ -114,21 +114,20 @@ int print_history(char *hist_arg) {
     if (hist_arg == NULL) n = history_length;
     else n = min(atoi(hist_arg), history_length);
 
-    for (int i = history_length - n; i < history_length; i++)
+    int i;
+    for (i = history_length - n; i < history_length; i++)
         printf("  %d\t%s\n", i + history_base, hist[i]->line);
 
     return 0;
-    
+
 }
 
 char *expand_wildcar(char *s) {
     char *ns = (char* ) malloc(sizeof(char) * 1024);
     char *search = (char* ) malloc(sizeof(char) * 1024);
-    int tmp = 0;
-    int found = 0;
-    int letters_before = 0;
-    int letters_after = 0;
-    for(int i=0; s[i]; i++) {
+    int tmp = 0, found = 0, letters_before = 0, letters_after = 0, i;
+
+    for(i=0; s[i]; i++) {
         if(s[i] == ' ') tmp = 0;
         else tmp++;
 
@@ -154,7 +153,8 @@ char *expand_wildcar(char *s) {
     }
 
     if(found == 1 && letters_before == 1) {
-        for(int i=0; s[i]; i++) {
+        int i;
+        for(i=0; s[i]; i++) {
             if(s[i] != '*') ns[i] = s[i];
             else {
                 i++;
@@ -173,7 +173,8 @@ char *expand_wildcar(char *s) {
     }
 
     if(found == 1 && letters_before != 1 && letters_after == 0) {
-        for(int i=0; s[i]; i++) {
+        int i;
+        for (i=0; s[i]; i++) {
             if(s[i] != '*') ns[i] = s[i];
             else {
                 int tmp = i;
@@ -195,7 +196,8 @@ char *expand_wildcar(char *s) {
     }
 
     if(found == 2) {
-        for(int i=0; s[i]; i++) {
+        int i;
+        for(i=0; s[i]; i++) {
             if(s[i] != '*') ns[i] = s[i];
             else {
                 i++;
@@ -215,7 +217,8 @@ char *expand_wildcar(char *s) {
 
     if(found == 1 && letters_before != 1 && letters_after != 0) {
         char *search1 = (char* ) malloc(sizeof(char) * 1024);
-        for(int i=0; s[i]; i++) {
+        int i;
+        for(i=0; s[i]; i++) {
             if(s[i] != '*') ns[i] = s[i];
             else {
                 int tmp = i;

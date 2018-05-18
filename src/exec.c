@@ -104,8 +104,8 @@ struct PROCESS exec_cmd(char* line) {
     // Separo comando e argomenti
     char *copy_line = (char*) malloc(sizeof(char) * strlen(line));
     strcpy(copy_line, line);
-    int spazi = 0, i = 0;
-    for (int c = 0; line[c] != '\0'; c++) if (line[c] == ' ') spazi++;
+    int spazi = 0, i = 0, c;
+    for (c = 0; line[c] != '\0'; c++) if (line[c] == ' ') spazi++;
     char* args[spazi+1]; // L'ultimo elemento dev'essere NULL
     char* token = strtok(line, " ");
     while (token) {

@@ -81,9 +81,8 @@ int main(int argc, char** argv) {
 
 
         // Controlla se ci sono punto e virgola
-        int pv = 0;
-        int cont = 0;
-        for(int i = 0; comando[i] != '\0'; i++) if(comando[i] == ';') pv++;
+        int pv = 0, cont = 0, i, j;
+        for(i = 0; comando[i] != '\0'; i++) if(comando[i] == ';') pv++;
         char* comandi[pv + 1];
         if (pv!=0) {
             cont = gest_pv(comandi, comando);
@@ -92,7 +91,7 @@ int main(int argc, char** argv) {
             comandi[cont - 1] = comando;
         }
 
-        for (int j=0; j<cont; j++){
+        for (j=0; j<cont; j++){
             cmd_id++;
             subcmd_id = 0;
 
@@ -108,8 +107,8 @@ int main(int argc, char** argv) {
             }
 
             // Controlla se il comando è fatto di soli spazi
-            int spazi = 0;
-            for (int k=0; k<strlen(comandi[j]); k++) if (comandi[j][k]== ' ') spazi++;
+            int spazi = 0, k;
+            for (k=0; k<strlen(comandi[j]); k++) if (comandi[j][k]== ' ') spazi++;
             if (strlen(comandi[j]) == spazi) continue;
 
             // Tolgo gli spazi finali
@@ -119,10 +118,9 @@ int main(int argc, char** argv) {
 
             if (comandi[j][t] == '&') {
                 comandi[j][t] = '\0';
+                printf("Running in backgound: %s\n", comandi[j]);
 
                 if (fork() == 0) {
-                    printf("Running in backgound: %s\n", comandi[j]);
-
                     int n = open("/dev/null", O_RDWR);
                     dup2(n, 1);
                     dup2(n, 2);

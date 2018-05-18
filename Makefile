@@ -9,25 +9,25 @@ GNU= -std=gnu90
 
 
 build: main exec vector internals utils mkdir
-	@ $(CC) $(OFLAG) shell *.o $(RL) $(GNU) &&  mv *.o shell ./$(DDIR)
+	@ $(CC) $(GNU) $(OFLAG) shell *.o $(RL) &&  mv *.o shell ./$(DDIR)
 
 clean:
 	@ rm -rf $(DDIR)
 
 main: $(SDIR)/main.c $(SDIR)/vector.h $(SDIR)/utils.h
-	@ $(CC) $(CFLAG) $(SDIR)/main.c
+	@ $(CC) $(GNU) $(CFLAG) $(SDIR)/main.c
 
 exec: $(SDIR)/exec.c $(SDIR)/exec.h
-	@ $(CC) $(CFLAG) $(SDIR)/exec.c
+	@ $(CC) $(GNU) $(CFLAG) $(SDIR)/exec.c
 
 vector: $(SDIR)/vector.c $(SDIR)/vector.h
-	@ $(CC) $(CFLAG) $(SDIR)/vector.c
+	@ $(CC) $(GNU) $(CFLAG) $(SDIR)/vector.c
 
 internals: $(SDIR)/internals.c $(SDIR)/internals.h
-	@ $(CC) $(CFLAG) $(SDIR)/internals.c
+	@ $(CC) $(GNU) $(CFLAG) $(SDIR)/internals.c
 
 utils: $(SDIR)/utils.c $(SDIR)/utils.h
-	@ $(CC) $(CFLAG) $(SDIR)/utils.c
+	@ $(CC) $(GNU) $(CFLAG) $(SDIR)/utils.c
 
 mkdir:
 	@ mkdir -p $(DDIR)

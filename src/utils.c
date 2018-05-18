@@ -17,7 +17,8 @@
     Converte una stringa in lowercase
 */
 void string_tolower(char s[]) {
-    for(int i = 0; s[i]; i++){
+    int i;
+    for (i = 0; s[i]; i++){
         s[i] = tolower(s[i]);
     }
 }
@@ -217,7 +218,8 @@ struct OPTIONS read_options(int argc, char** argv) {
     }
 
     // Se sono rimasti argomenti non riconosciuti avverti l'utente
-    for (int i = optind; i < argc; i++)
+    int i;
+    for (i = optind; i < argc; i++)
         fprintf(stderr, "Unrecognized argument: %s\n", argv[i]);
 
     return ret;
