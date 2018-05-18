@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <fcntl.h>
 #include <sys/wait.h>
 #include <readline/history.h>
 
@@ -99,6 +100,7 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, in
 */
 struct PROCESS exec_cmd(char* line) {
     struct PROCESS dummy; // = fork_cmd((char*[]) {";", NULL});
+    dummy.stdout = dummy.stderr = dummy.stdin = open("/dev/null", O_RDWR);
     // printf("----    exec_cmd: %s\n", line);
 
     // Separo comando e argomenti

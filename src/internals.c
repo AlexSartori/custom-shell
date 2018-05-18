@@ -120,6 +120,7 @@ int print_history(char *hist_arg) {
 
     return 0;
 
+
 }
 
 char *expand_wildcar(char *s) {
@@ -153,7 +154,7 @@ char *expand_wildcar(char *s) {
     }
 
     if(found == 1 && letters_before == 1) {
-        int i;
+        //int i;
         for(i=0; s[i]; i++) {
             if(s[i] != '*') ns[i] = s[i];
             else {
@@ -173,7 +174,7 @@ char *expand_wildcar(char *s) {
     }
 
     if(found == 1 && letters_before != 1 && letters_after == 0) {
-        int i;
+        //int i;
         for (i=0; s[i]; i++) {
             if(s[i] != '*') ns[i] = s[i];
             else {
@@ -196,7 +197,7 @@ char *expand_wildcar(char *s) {
     }
 
     if(found == 2) {
-        int i;
+        //int i;
         for(i=0; s[i]; i++) {
             if(s[i] != '*') ns[i] = s[i];
             else {
@@ -217,7 +218,7 @@ char *expand_wildcar(char *s) {
 
     if(found == 1 && letters_before != 1 && letters_after != 0) {
         char *search1 = (char* ) malloc(sizeof(char) * 1024);
-        int i;
+        //int i;
         for(i=0; s[i]; i++) {
             if(s[i] != '*') ns[i] = s[i];
             else {

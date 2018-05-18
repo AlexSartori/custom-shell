@@ -120,6 +120,7 @@ int main(int argc, char** argv) {
                 comandi[j][t] = '\0';
                 printf("Running in backgound: %s\n", comandi[j]);
 
+                // TODO Gestire se ho un errore
                 if (fork() == 0) {
                     int n = open("/dev/null", O_RDWR);
                     dup2(n, 1);
