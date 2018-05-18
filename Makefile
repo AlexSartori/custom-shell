@@ -1,5 +1,5 @@
 .PHONY: build clean mkdir
-CC= gcc
+CC= gcc -g
 CFLAG= -c
 OFLAG= -o
 SDIR= src

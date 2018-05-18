@@ -19,10 +19,10 @@
 
 struct OPTIONS {
     char log_out_path[BUF_SIZE], log_err_path[BUF_SIZE];
-    int max_size;
+    int max_size, hist_size, save_ret_code, timeout;
 };
 
-//PROTOTIPI FUNZIONI E PROCEDURE
+int save_ret_code;
 
 int clear();
 char* getuser();

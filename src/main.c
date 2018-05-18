@@ -20,10 +20,13 @@
 char *comando, prompt[BUF_SIZE];
 int log_out, log_err; // File di log
 int cmd_id = 0, subcmd_id = 0; // ID incrementale del comando, per il file di log
+struct OPTIONS opt; // Opzioni con cui è stata chiamata la shell
 
 void init_shell(struct OPTIONS opt) {
     comando = (char *)malloc(BUF_SIZE*sizeof(char)),
     running_tasks = 0;
+    save_ret_code = 0;
+    run_timeout = -1;
 
     // Tab autocomplete
     rl_bind_key('\t', rl_complete);
@@ -60,9 +63,11 @@ void sigHandler(int sig) {
 
 
 int main(int argc, char** argv) {
-    struct OPTIONS opt = read_options(argc, argv);
+    opt = read_options(argc, argv);
     init_shell(opt);
     vector_alias_initializer();
+    save_ret_code = opt.save_ret_code;
+    run_timeout = opt.timeout;
 
     while(1) {
         get_prompt(prompt);
@@ -73,6 +78,7 @@ int main(int argc, char** argv) {
 
         // Gestisco history
         add_history(comando);
+        stifle_history(opt.hist_size);
 
         // Gestisco alias
         comando = parse_alias(comando);
@@ -132,7 +138,8 @@ int main(int argc, char** argv) {
             }
 
             struct PROCESS p = exec_line(comandi[j], cmd_id, &subcmd_id, log_out, log_err);
-            if (p.status != 0) printcolor("! Error: Cannot execute command.\n", KRED);
+            if (p.status == 65280) printcolor("! Error: command not found.\n", KRED);
+            else if (p.status != 0) { printcolor("Non-zero exit status: ", KMAG); printf("%d\n", p.status); }
         }
 
         // Controllo dimensione dei file

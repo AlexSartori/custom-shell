@@ -112,12 +112,19 @@ void log_process(struct PROCESS p, char* cmd, int cmd_id, int subcmd_id, int* st
     //////////////////////   STDOUT   //////////////////////
     // Scrivi intestazioni
     write(streams[0], "\n\n=============================================\n", 48);
-    snprintf(buf, BUF_SIZE, "\
-        ID:        #%d.%d\n\
-        COMMAND:   %s\n\
-        DATE:      %s\
-        RET CODE:  %d\n\
-        OUTPUT:\n\n", cmd_id, subcmd_id, cmd, ctime(&curtime), p.status);
+    if (save_ret_code == 1)
+        snprintf(buf, BUF_SIZE, "\
+            ID:        #%d.%d\n\
+            COMMAND:   %s\n\
+            DATE:      %s\
+            RET CODE:  %d\n\
+            OUTPUT:\n\n", cmd_id, subcmd_id, cmd, ctime(&curtime), p.status);
+    else
+        snprintf(buf, BUF_SIZE, "\
+            ID:        #%d.%d\n\
+            COMMAND:   %s\n\
+            DATE:      %s\
+            OUTPUT:\n\n", cmd_id, subcmd_id, cmd, ctime(&curtime));
     write(streams[0], buf, strlen(buf));
 
     // Scrivi lo stdout del proc sugli output richiesti (stdout o stdin di un altro proc)
@@ -127,12 +134,19 @@ void log_process(struct PROCESS p, char* cmd, int cmd_id, int subcmd_id, int* st
     //////////////////////   STDERR   //////////////////////
     // Scrivi intestazioni
     write(streams[1], "\n\n=============================================\n", 48);
-    snprintf(buf, BUF_SIZE, "\
-        ID:        #%d.%d\n\
-        COMMAND:   %s\n\
-        DATE:      %s\
-        RET CODE:  %d\n\
-        STDERR:\n\n", cmd_id, subcmd_id, cmd, ctime(&curtime), p.status);
+    if (save_ret_code == 1)
+        snprintf(buf, BUF_SIZE, "\
+            ID:        #%d.%d\n\
+            COMMAND:   %s\n\
+            DATE:      %s\
+            RET CODE:  %d\n\
+            STDERR:\n\n", cmd_id, subcmd_id, cmd, ctime(&curtime), p.status);
+    else
+        snprintf(buf, BUF_SIZE, "\
+            ID:        #%d.%d\n\
+            COMMAND:   %s\n\
+            DATE:      %s\
+            STDERR:\n\n", cmd_id, subcmd_id, cmd, ctime(&curtime));
     write(streams[1], buf, strlen(buf));
 
     // Scrivi lo stdout del proc sugli output richiesti (stdout o stdin di un altro proc)
@@ -166,11 +180,13 @@ struct OPTIONS read_options(int argc, char** argv) {
             val:     vedi sopra, (se flag == NULL, viene ritornato val)
     */
     struct option long_opts[] = {
-        { "outfile", required_argument, 0, 'o' },
-        { "errfile", required_argument, 0, 'e' },
-        { "maxsize", required_argument, 0, 'm' },
-        { "retcode", no_argument,       0, 'r' },
-        { "help",    no_argument,       0, 'h' },
+        { "outfile",  required_argument, 0, 'o' },
+        { "errfile",  required_argument, 0, 'e' },
+        { "maxsize",  required_argument, 0, 'm' },
+        { "histsize", required_argument, 0, 'u' },
+        { "timeout",  required_argument, 0, 't' },
+        { "retcode",  no_argument,       0, 'r' },
+        { "help",     no_argument,       0, 'h' },
         { 0, 0, 0, 0 } // Serve come delimitatore finale dell'array
     };
 
@@ -179,15 +195,19 @@ struct OPTIONS read_options(int argc, char** argv) {
     strcpy(ret.log_out_path, "log_stdout.txt");
     strcpy(ret.log_err_path, "log_stderr.txt");
     ret.max_size = 5 * 1024 * 1024; // 5MB
+    ret.hist_size = 1000;
+    ret.save_ret_code = 0;
+    ret.timeout = -1;
 
     char c;
     int indexptr;
     opterr = 0; // Non stampare messaggi
 
-    while ((c = getopt_long(argc, argv, ":o:e:m:rh", long_opts, &indexptr)) != -1) {
+    while ((c = getopt_long(argc, argv, ":o:e:m:u:t:rh", long_opts, &indexptr)) != -1) {
         switch (c) {
             case 'h':
                 print_help();
+                shell_exit(0);
                 break;
             case 'o':
                 printf("  Outfile:\t%s\n", optarg);
@@ -201,8 +221,17 @@ struct OPTIONS read_options(int argc, char** argv) {
                 printf("  Max Size:\t%s [bytes]\n", optarg);
                 ret.max_size = atoi(optarg);
                 break;
+            case 'u':
+                printf("  History Size:\t%s entries\n", optarg);
+                ret.hist_size = atoi(optarg);
+                break;
             case 'r':
                 printf("  Record process return code: yes\n");
+                ret.save_ret_code = 1;
+                break;
+            case 't':
+                printf("  Kill processes after: %d seconds\n", atoi(optarg));
+                ret.timeout = atoi(optarg);
                 break;
 
             case ':':
@@ -239,10 +268,12 @@ int print_help(char* cmd) {
       ./shell <options>\n\n\
   Options:\n\
       -h, --help           Print this message\n\
-      -o, --outfile        Set path of the stdout log file\n\
-      -e, --errfile        Set path of the err log file\n\
+      -o, --outfile        Set the path of the stdout log file\n\
+      -e, --errfile        Set the path of the stderr log file\n\
       -m, --maxsize        Set the max size of the log files\n\
-      -r, --retcode        Save the exit code of the commands\n\n\n");
+      -u, --histsize       Undo history size\n\
+      -r, --retcode        Save the exit code of the commands\n\
+      -t, --timeout        Kill processes after t seconds\n\n\n");
     else {
         if (strcmp(cmd, "clear") == 0)
             printf("clear: Clear the screen.\n");

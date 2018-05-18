@@ -31,6 +31,7 @@
 
 void signal_child(int sig) {
     printf("Process %d received signal %d\n", getpid(), sig);
+    exit(1);
 }
 
 /*
@@ -165,6 +166,8 @@ struct PROCESS exec_internal(int (*f)(char*), char* arg) {
 
     if (pid == 0) { // Child
         signal(SIGINT, signal_child);
+        signal(SIGALRM, signal_child);
+        alarm(run_timeout);
 
         // Chiudi pipe-end che non servono
         close(child_in[PIPE_WRITE]);
@@ -217,6 +220,10 @@ struct PROCESS fork_cmd(char** args) {
     if ((pid = fork())  < 0) perror("Cannot create child");
 
     if (pid == 0) { // Child
+        signal(SIGINT, signal_child);
+        signal(SIGALRM, signal_child);
+        alarm(run_timeout);
+
         // Chiudi pipe-end che non servono
         close(child_in[PIPE_WRITE]);
         close(child_out[PIPE_READ]);

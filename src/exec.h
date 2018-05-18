@@ -11,7 +11,7 @@ struct PROCESS {
     int status;
 };
 
-int running_tasks;
+int running_tasks, run_timeout;
 
 struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, int log_err);
 struct PROCESS exec_cmd(char* line);
