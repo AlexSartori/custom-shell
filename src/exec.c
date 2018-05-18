@@ -123,9 +123,9 @@ struct PROCESS exec_cmd(char* line) {
     // Controllo se è un comando che voglio gestire internamente
     // TODO anche questi devono avere I/O su file?
     if (strcmp(args[0], "clear") == 0)
-        return exec_internal(clear, NULL);
+        dummy.status = clear();
     else if (strcmp(args[0], "exit") == 0)
-        exit(0); // shell_exit(0);
+        shell_exit(0);
     else if (strcmp(args[0], "help") == 0)
         return exec_internal(print_help, args[1]);
     else if (strcmp(args[0], "alias") == 0) {
