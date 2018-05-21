@@ -24,15 +24,16 @@ struct OPTIONS opt; // Opzioni con cui è stata chiamata la shell
 
 void init_shell(struct OPTIONS opt) {
     comando = (char *)malloc(BUF_SIZE*sizeof(char)),
-    running_tasks = 0;
+    child_cmd_pid = 0;
     save_ret_code = 0;
     run_timeout = -1;
 
     // Tab autocomplete
     rl_bind_key('\t', rl_complete);
 
-    // Catch Ctrl-C
+    // Catch Ctrl-C and execution timeout
     signal(SIGINT, sigHandler);
+    signal(SIGALRM, sigHandler);
 
     // Apri i file di log
     log_out = open(opt.log_out_path, O_RDWR | O_CREAT | O_APPEND, 0644);
@@ -57,10 +58,13 @@ void shell_exit(int status) {
 
 void sigHandler(int sig) {
     // printf("Parent (%d) received signal: %d\n", getpid(), sig);
-    if (sig == 9 || sig == 15) // SIGKILL o SIGTERM
+    if (sig == SIGKILL || sig == SIGTERM)
         shell_exit(0);
-    else if (sig == 2 && running_tasks == 0)
-        // Ctrl-C (SIGINT) e nessun processo in esecuzione -> faccio uscire la shell
+    else if (sig == SIGALRM) {
+        if(child_cmd_pid != 0) kill(child_cmd_pid, 9); // printf("%s\n", "Yolo");
+    } else if (sig == SIGINT && child_cmd_pid != 0) // Killo il figlio bloccato
+        kill(child_cmd_pid, 9);
+    else // Ctrl-C e nessun processo in esecuzione -> faccio uscire la shell
         shell_exit(0);
 }
 
@@ -68,13 +72,16 @@ void sigHandler(int sig) {
 int main(int argc, char** argv) {
     opt = read_options(argc, argv);
     init_shell(opt);
-    
+
     save_ret_code = opt.save_ret_code;
     run_timeout = opt.timeout;
 
     while(1) {
         get_prompt(prompt);
         comando = readline(prompt);
+        
+        child_cmd_pid = 0;
+        alarm(run_timeout);
 
         if (comando == NULL) break; // Era una linea vuota
         if (strlen(comando) == 0) continue; // Invio
@@ -131,21 +138,27 @@ int main(int argc, char** argv) {
 
             if (comandi[j][t] == '&') {
                 comandi[j][t] = '\0';
-                printf("Running in backgound: %s\n", comandi[j]);
 
-                // TODO Gestire se ho un errore
-                if (fork() == 0) {
+                pid_t pid = fork();
+                if (pid < 0) perror("Cannot fork for background execution");
+                else if (pid == 0) {
+                    printf("[%d] Running in backgound: %s\n", getpid(), comandi[j]);
+                    close(0);
                     int n = open("/dev/null", O_RDWR);
-                    dup2(n, 1);
-                    dup2(n, 2);
-                    exit(exec_line(comandi[j], cmd_id, &subcmd_id, n, n).status);
-                }
+                    // dup2(n, 1);
+                    // dup2(n, 2);
+                    exec_line(comandi[j], cmd_id, &subcmd_id, n, n).status;
+                    printf("\n[%d] Done: %s\n", getpid(), comandi[j]);
+                    fflush(stdout);
+                } else
+                    child_cmd_pid = pid;
 
                 continue;
             }
 
-	    //Gestisci redirect
-	    if(redirect(comandi[j], &cmd_id, subcmd_id, log_out, log_err) == 1) continue;
+
+    	    // Gestisci redirect
+    	    if(redirect(comandi[j], &cmd_id, subcmd_id, log_out, log_err) == 1) continue;
 
             struct PROCESS p = exec_line(comandi[j], cmd_id, &subcmd_id, log_out, log_err);
             if (p.status == 65280) printcolor("! Error: command not found.\n", KRED);

@@ -46,9 +46,8 @@ void signal_child(int sig) {
 struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, int log_err) {
     static int LOG_CMD = 1;
     struct PROCESS p, pre_pipe;
-    running_tasks++;
     // printf("----    Exec line: %s\n", line);
-    // printf("Running tasks: %d\n", running_tasks);
+    // printf("Running tasks: %d\n", child_cmd_pid);
 
 
     // Finché l'ultimo carattere è un pipe o uno spazio, lo tolgo
@@ -83,14 +82,12 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, in
     }
 
     if (LOG_CMD) {
-              
         wait(&p.status);
         log_process(p, line+(i+1), cmd_id, *subcmd_id, (int[]){ log_out, log_err, 1, 2 });
         close(p.stdout);
         close(p.stderr);
     }
 
-    running_tasks--;
     return p;
 }
 
@@ -173,9 +170,9 @@ struct PROCESS exec_internal(int (*f)(char*), char* arg) {
     if ((pid = fork())  < 0) perror("Cannot create child");
 
     if (pid == 0) { // Child
-        signal(SIGINT, signal_child);
-        signal(SIGALRM, signal_child);
-        alarm(run_timeout);
+        // signal(SIGINT, signal_child);
+        // signal(SIGALRM, signal_child);
+        // alarm(run_timeout);
 
         // Chiudi pipe-end che non servono
         close(child_in[PIPE_WRITE]);
@@ -196,6 +193,7 @@ struct PROCESS exec_internal(int (*f)(char*), char* arg) {
 
         exit(ret_code);
     } else { // Parent
+        child_cmd_pid = pid;
         // Chiudi i pipe che non servono
         close(child_in[PIPE_READ]);
         close(child_out[PIPE_WRITE]);
@@ -228,9 +226,9 @@ struct PROCESS fork_cmd(char** args) {
     if ((pid = fork())  < 0) perror("Cannot create child");
 
     if (pid == 0) { // Child
-        signal(SIGINT, signal_child);
-        signal(SIGALRM, signal_child);
-        alarm(run_timeout);
+        // signal(SIGINT, signal_child);
+        // signal(SIGALRM, signal_child);
+        // alarm(run_timeout);
 
         // Chiudi pipe-end che non servono
         close(child_in[PIPE_WRITE]);
@@ -252,6 +250,7 @@ struct PROCESS fork_cmd(char** args) {
 
         exit(ret_code);
     } else { // Parent
+        child_cmd_pid = pid;
         // Chiudi i pipe che non servono
         close(child_in[PIPE_READ]);
         close(child_out[PIPE_WRITE]);
