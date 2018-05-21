@@ -328,13 +328,20 @@ void printcolor(char *s, char *color) {
 
 
 /*
-    Stampa il prompt della shell come "[utente@percorso]$"
+    Stampa il prompt della shell come "[utente@percorso] ->".
+    I codici ANSI dei colori compromettono il calcolo della lunghezza del prompt
+    effettuato da readline risultando in errori di stampa, quindi i codice di
+    escape \001 e \002 indicano di ignorare i caratteri compresi tra essi
+    per questo calcolo.
+
+    See: https://wiki.hackzine.org/development/misc/readline-color-prompt.html
 */
 char* get_prompt(char* prompt) {
     char path[BUF_SIZE];
+    if (getcwd(path, BUF_SIZE) == NULL) perror("Path cannot fit in the buffer");
 
-    if (getcwd(path, BUF_SIZE) == NULL) perror("Path cannot fit in the buffer"); 
-    snprintf(prompt, BUF_SIZE, "[%s%s%s @ %s%s%s] -> ", KCYN, getuser(), KNRM, KYEL, path, KNRM);
+    // snprintf(prompt, BUF_SIZE, "┌─ %s%s%s @ %s%s%s\n└───» ", KCYN, getuser(), KNRM, KYEL, path, KNRM);
+    snprintf(prompt, BUF_SIZE, "[\001%s\002%s\001%s\002 @ \001%s\002%s\001%s\002] -> ", KCYN, getuser(), KNRM, KYEL, path, KNRM);
 
     return prompt;
 }
@@ -373,7 +380,7 @@ int redirect(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err){
             strcpy(new_input,new_file);
             n[0]= open(new_input, O_RDWR | O_APPEND);
             if(n[0]<0){ printf("Cannot use %s\n",new_input); return 1;}
-            
+
 
             } else if(c[i-1]=='2'){ //error
                 strcpy(new_error,new_file);
@@ -416,10 +423,10 @@ int redirect(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err){
 
         write_to(n[0], p.stdin, open("/dev/null", O_RDWR));
         close(p.stdin);
-        
+
         wait(&p.status);
         log_process(p, cmd, *cmd_id, subcmd_id, (int[]){ log_out, log_err, 1, 2 });
-        
+
         if (p.status == 65280) fprintf(stderr,"! Error: command not found.\n");
         else if (p.status != 0) { fprintf(stderr, "Non-zero exit status:%d\n", p.status);}
 

@@ -23,7 +23,6 @@ int cmd_id = 0, subcmd_id = 0; // ID incrementale del comando, per il file di lo
 struct OPTIONS opt; // Opzioni con cui è stata chiamata la shell
 
 void init_shell(struct OPTIONS opt) {
-    comando = (char *)malloc(BUF_SIZE*sizeof(char)),
     child_cmd_pid = 0;
     save_ret_code = 0;
     run_timeout = -1;
@@ -79,12 +78,12 @@ int main(int argc, char** argv) {
     while(1) {
         get_prompt(prompt);
         comando = readline(prompt);
-        
+
         child_cmd_pid = 0;
         alarm(run_timeout);
 
-        if (comando == NULL) break; // Era una linea vuota
-        if (strlen(comando) == 0) continue; // Invio
+        if (comando == NULL) break; // Ctrl-D
+        if (strlen(comando) == 0) continue; // Linea vuota
 
         // Gestisco history
         add_history(comando);
