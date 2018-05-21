@@ -10,10 +10,14 @@
 
 
 vector vector_alias;
+vector vector_vars;
 
-void vector_alias_initializer() {
+void vectors_initializer() {
     vector_init(&vector_alias);
+    vector_init(&vector_vars);
 }
+
+//***************** GESTIONE ALIAS
 
 char* parse_alias(char* comando) {
     char *init = (char*)malloc(sizeof(char)*(strlen(comando)));
@@ -105,8 +109,128 @@ int make_alias(char *copy_line) {
     return 0;
 }
 
-int print_history(char *hist_arg) {
+//***************** GESTIONE VARIABILI
 
+int list_vars() {
+    elemento* tmp;
+    int i;
+    for(i=0; i<vector_total(&vector_vars); i++) {
+        tmp = (elemento*)vector_get(&vector_vars, i);
+        printf("%s = %s\n", tmp->name, tmp->data);
+    }
+    return 0;
+}
+
+int search_var_elemento(elemento* el) {
+    int i;
+    for(i=0; i<vector_total(&vector_vars); i++) {
+        elemento* tmp;
+        tmp = (elemento*)vector_get(&vector_vars, i);
+
+        if(strcmp(el->name, tmp->name) == 0) {
+            tmp -> data = el -> data;
+            return 1;
+        }
+
+    }
+
+    return 0;
+}
+
+char* search_var_name(char *name) {
+    int i;
+    for(i=0; i<vector_total(&vector_vars); i++) {
+        elemento* tmp;
+        tmp = (elemento*)vector_get(&vector_vars, i);
+
+        if(strcmp(name, tmp->name) == 0) {
+            return tmp -> data;
+        }
+
+    }
+    return NULL;
+}
+
+char* parse_vars(char *comando) {
+    char *c = (char* )malloc(sizeof(char) * strlen(comando)*2);
+    char *var = (char* )malloc(sizeof(char) * strlen(comando));
+    int j = 0;
+    int i = 0;
+    int z = 0;
+    char* data;
+    int k = 0;
+
+    for(i = 0; comando[i]; i++) {
+        if(comando[i] != '$') {
+            c[j] = comando[i];
+            j++;
+        } else {
+            z = 0;
+            i++;
+            while(comando[i] != '\0' && comando[i] != ' ' && comando[i] != '$') {
+                var[z] = comando[i];
+                i++;
+                z++;
+            }
+            var[z] = '\0';
+            //printf("FOUND VAR: %s\n", var);
+            data = search_var_name(var);
+
+            if(data == NULL) {
+                printf("Error: variable not found\n");
+                return "";
+            }
+            //printf("FOUND DATA: %s\n", data);
+            for(k=0; data[k]; k++) {
+                c[j] = data[k];
+                j++;
+            }
+            i--;
+        }
+    }
+    c[j] = '\0';
+    free(var);
+    //printf("%s\n", c);
+    return c;
+}
+
+int make_var(char *copy_line) {
+    char *var = (char*)malloc(sizeof(char) * strlen(copy_line));
+    char *content = (char*)malloc(sizeof(char) * strlen(copy_line));
+    int active = 0, first = 1, var_index = 0, content_index = 0, i;
+
+    for(i=0; copy_line[i]!='\0'; i++) {
+        if(active == 1 && first == 1) var[var_index++] = copy_line[i];
+        if(active == 1 && first == 0) content[content_index++] = copy_line[i];
+        if(copy_line[i] == '\'' && active == 0) active = 1;
+        else if(copy_line[i] == '\'' && active == 1) {
+            active = 0;
+            first = 0;
+        }
+    }
+    var[var_index-1] = '\0';
+    content[content_index-1] = '\0';
+
+    if(strlen(var) == 0 || strlen(content) == 0) {
+        printcolor("! Error: format \'var\'=\'content\'\n", KRED);
+    } else {
+        elemento *insert = (elemento*)malloc(sizeof(elemento));
+        insert -> name = var;
+        insert -> data = content;
+        if (search_var_elemento(insert) == 1) {
+            printf("Warning: var \'%s\' has been overwritten\n", var);
+        } else {
+            vector_add(&vector_vars, insert);
+        }
+    }
+
+    return 0;
+}
+
+//***************** GESTIONE HISTORY
+
+int print_history(char *hist_arg) {
+    
 	HIST_ENTRY** hist = history_list();
     int n; // Quanti elementi della cronologia mostrare
 
@@ -120,13 +244,18 @@ int print_history(char *hist_arg) {
 
     return 0;
 
-
 }
+
+//***************** GESTIONE WILDCARDS
 
 char *expand_wildcar(char *s) {
     char *ns = (char* ) malloc(sizeof(char) * 1024);
+    char *ns1 = (char* ) malloc(sizeof(char) * 1024);
     char *search = (char* ) malloc(sizeof(char) * 1024);
-    int tmp = 0, found = 0, letters_before = 0, letters_after = 0, i;
+    int tmp = 0, found = 0, letters_before = 0, letters_after = 0, i = 0, pos = 0;
+
+    for(i=0;i<1024;i++) ns[i] = '\0';
+
 
     for(i=0; s[i]; i++) {
         if(s[i] == ' ') tmp = 0;
@@ -142,6 +271,8 @@ char *expand_wildcar(char *s) {
         }
     }
 
+
+
     if(found > 2) {
         ns[0] = '\0';
         printf("ERROR\n");
@@ -153,13 +284,16 @@ char *expand_wildcar(char *s) {
         return s;
     }
 
+    //printf("found: %d letters_before: %d\n", found, letters_before);
+
     if(found == 1 && letters_before == 1) {
         //int i;
         for(i=0; s[i]; i++) {
+            //printf("%c\n", s[i]);
             if(s[i] != '*') ns[i] = s[i];
             else {
                 i++;
-                int pos = 0;
+                pos = 0;
                 while(s[i] != ' ' && s[i] != '\0') {
                     search[pos] = s[i];
                     i++;
@@ -169,8 +303,10 @@ char *expand_wildcar(char *s) {
                 break;
             }
         }
-        snprintf(ns, 1024, "%s | grep %s$", ns, search);
         //printf("%s\n", ns);
+        //ns[i-1] = '\0';
+        snprintf(ns1, 1024, "%s | grep %s$", ns, search);
+        //printf("%s\n", ns1);
     }
 
     if(found == 1 && letters_before != 1 && letters_after == 0) {
@@ -192,7 +328,7 @@ char *expand_wildcar(char *s) {
                 break;
             }
         }
-        snprintf(ns, 1024, "%s | grep ^%s", ns, search);
+        snprintf(ns1, 1024, "%s | grep ^%s", ns, search);
         //printf("%s\n", ns);
     }
 
@@ -212,7 +348,7 @@ char *expand_wildcar(char *s) {
                 break;
             }
         }
-        snprintf(ns, 1024, "%s | grep %s", ns, search);
+        snprintf(ns1, 1024, "%s | grep %s", ns, search);
         //printf("%s\n", ns);
     }
 
@@ -245,10 +381,10 @@ char *expand_wildcar(char *s) {
                 break;
             }
         }
-        snprintf(ns, 1024, "%s | grep ^%s | grep %s$", ns, search, search1);
+        snprintf(ns1, 1024, "%s | grep ^%s | grep %s$", ns, search, search1);
         //printf("%s\n", ns);
     }
-
-
-    return ns;
+    //printf("%s\n", ns);
+    //printf("%s\n", ns1);
+    return ns1;
 }

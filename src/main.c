@@ -37,6 +37,9 @@ void init_shell(struct OPTIONS opt) {
     // Apri i file di log
     log_out = open(opt.log_out_path, O_RDWR | O_CREAT | O_APPEND, 0644);
     log_err = open(opt.log_err_path, O_RDWR | O_CREAT | O_APPEND, 0644);
+
+    // Inizializza array alias e variabili
+    vectors_initializer();
 }
 
 
@@ -65,7 +68,7 @@ void sigHandler(int sig) {
 int main(int argc, char** argv) {
     opt = read_options(argc, argv);
     init_shell(opt);
-    vector_alias_initializer();
+    
     save_ret_code = opt.save_ret_code;
     run_timeout = opt.timeout;
 
@@ -83,10 +86,14 @@ int main(int argc, char** argv) {
         // Gestisco alias
         comando = parse_alias(comando);
 
+        // Gestisco variabili
+        comando = parse_vars(comando);
+
+        // Gestisco wildcards
         comando = expand_wildcar(comando);
 
 
-        // Controlla se ci sono punto e virgola
+        // Gestisco punto e virgola
         int pv = 0, cont = 0, i, j;
         for(i = 0; comando[i] != '\0'; i++) if(comando[i] == ';') pv++;
         char* comandi[pv + 1];
@@ -103,7 +110,7 @@ int main(int argc, char** argv) {
 
             if(comandi[j] == NULL || strlen(comandi[j]) == 0 ) continue;
 
-            // Gestici &&
+            // Gestico &&
             int br;
             br = gest_and(comandi[j], &cmd_id, subcmd_id , log_out, log_err);
             if (br == -1){
@@ -136,6 +143,9 @@ int main(int argc, char** argv) {
 
                 continue;
             }
+
+	    //Gestisci redirect
+	    if(redirect(comandi[j], &cmd_id, subcmd_id, log_out, log_err) == 1) continue;
 
             struct PROCESS p = exec_line(comandi[j], cmd_id, &subcmd_id, log_out, log_err);
             if (p.status == 65280) printcolor("! Error: command not found.\n", KRED);

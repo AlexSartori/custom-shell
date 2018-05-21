@@ -83,6 +83,7 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, in
     }
 
     if (LOG_CMD) {
+              
         wait(&p.status);
         log_process(p, line+(i+1), cmd_id, *subcmd_id, (int[]){ log_out, log_err, 1, 2 });
         close(p.stdout);
@@ -135,6 +136,13 @@ struct PROCESS exec_cmd(char* line) {
             return exec_internal(list_alias, NULL);
         } else {
             dummy.status = make_alias(copy_line);
+        }
+    } else if (strcmp(args[0], "var") == 0) {
+        char *tmp = args[1];
+        if(tmp == NULL) {
+            return exec_internal(list_vars, NULL);
+        } else {
+            dummy.status = make_var(copy_line);
         }
     } else if (strcmp(args[0], "cd") == 0) {
         dummy.status = chdir(args[1]);

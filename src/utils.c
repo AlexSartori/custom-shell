@@ -333,8 +333,103 @@ void printcolor(char *s, char *color) {
 char* get_prompt(char* prompt) {
     char path[BUF_SIZE];
 
-    if (getcwd(path, BUF_SIZE) == NULL) perror("Path cannot fit in the buffer");
+    if (getcwd(path, BUF_SIZE) == NULL) perror("Path cannot fit in the buffer"); 
     snprintf(prompt, BUF_SIZE, "[%s%s%s @ %s%s%s] -> ", KCYN, getuser(), KNRM, KYEL, path, KNRM);
 
     return prompt;
+}
+
+int redirect(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err){
+    int flag=0;
+    int flags; //append, normal
+    int red[3], n[3], s[3];
+    int len = strlen(c);
+    char new_error[len], new_input[len], new_output[len];
+    int cmd_saved=0;
+    int i = 0;
+    char cmd[len];
+    while (i< len){
+        if(c[i]=='>'|| c[i]=='<'){ //output, error o input
+            int file_start = i + 1;
+            if(c[file_start]=='>'){ // append
+                file_start++;
+                flags= 2;
+            } else { //normal
+                flags= 1;
+                }
+
+            while(c[file_start]==' ') file_start++;
+            int file_end = file_start;
+            while(c[file_end]!= ' ' && c[file_end]!= '\0') file_end++;
+            char new_file[len - file_start + 3];
+            strcpy(new_file,"./");
+            strcat(new_file,c + file_start);
+            new_file[file_end + 2 - file_start] = '\0';
+
+            if (c[i]=='<'){//input
+            //rintf("OOOK\n");
+            // red[0]=1;
+            // s[0]= dup(0);
+            strcpy(new_input,new_file);
+            n[0]= open(new_input, O_RDWR | O_APPEND);
+            if(n[0]<0){ printf("Cannot use %s\n",new_input); return 1;}
+            
+
+            } else if(c[i-1]=='2'){ //error
+                strcpy(new_error,new_file);
+                i--;
+                red[2]=1;
+                s[2]=dup(2);
+                n[2] = open(new_error, O_RDWR | (flags==2? O_CREAT | O_APPEND : O_CREAT | O_TRUNC) , 0644);
+            } else { //output
+                strcpy(new_output,new_file);
+                //printf("new_output: %s\n",new_output);
+                red[1]=1;
+                s[1]=dup(1);
+                n[1] = open(new_output, O_RDWR | (flags==2? O_CREAT | O_APPEND : O_CREAT | O_TRUNC) , 0644);
+            }
+
+            if(!cmd_saved){
+                flag=1; //l'esecuzione è stata gestita nella funzione
+                *cmd_id++;
+                //salvo il comando da eseguire
+                strcpy(cmd, c);
+                cmd[i]='\0';
+                cmd_saved=1;
+            }
+
+            i=file_end;
+        } else i++; //nessuno dei precedenti
+    }
+
+    if(flag){
+        struct PROCESS p;
+        int i;
+        for(i=1; i<3; i++){
+            if(red[i]==1){
+                dup2(n[i], i);
+                close(n[i]);
+            }
+        }
+
+        p = exec_cmd(cmd);
+
+        write_to(n[0], p.stdin, open("/dev/null", O_RDWR));
+        close(p.stdin);
+        
+        wait(&p.status);
+        log_process(p, cmd, *cmd_id, subcmd_id, (int[]){ log_out, log_err, 1, 2 });
+        
+        if (p.status == 65280) fprintf(stderr,"! Error: command not found.\n");
+        else if (p.status != 0) { fprintf(stderr, "Non-zero exit status:%d\n", p.status);}
+
+        for(i=1; i<3; i++){
+            if(red[i]==1){
+                dup2(s[i], i);
+                close(s[i]);
+            }
+        }
+
+    }
+return flag;
 }
