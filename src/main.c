@@ -75,6 +75,8 @@ int main(int argc, char** argv) {
     save_ret_code = opt.save_ret_code;
     run_timeout = opt.timeout;
 
+    int for_loop = 0;
+
     while(1) {
         get_prompt(prompt);
         comando = readline(prompt);
@@ -91,9 +93,6 @@ int main(int argc, char** argv) {
 
         // Gestisco alias
         comando = parse_alias(comando);
-
-        // Gestisco variabili
-        comando = parse_vars(comando);
 
         // Gestisco wildcards
         comando = expand_wildcar(comando);
@@ -116,7 +115,7 @@ int main(int argc, char** argv) {
 
             if(comandi[j] == NULL || strlen(comandi[j]) == 0 ) continue;
 
-            // Gestico &&
+            // Gestisco &&
             int br;
             br = gest_and(comandi[j], &cmd_id, subcmd_id , log_out, log_err);
             if (br == -1){
@@ -124,6 +123,9 @@ int main(int argc, char** argv) {
             } else {
                  comandi[j]= comandi[j] + br;
             }
+
+	        // Gestisco redirect
+            if(redirect(comandi[j], &cmd_id, subcmd_id, log_out, log_err) == 1) continue;
 
             // Controlla se il comando è fatto di soli spazi
             int spazi = 0, k;
@@ -146,7 +148,7 @@ int main(int argc, char** argv) {
                     int n = open("/dev/null", O_RDWR);
                     // dup2(n, 1);
                     // dup2(n, 2);
-                    exec_line(comandi[j], cmd_id, &subcmd_id, n, n).status;
+                    exec_line(comandi[j], cmd_id, &subcmd_id, n, n);
                     printf("\n[%d] Done: %s\n", getpid(), comandi[j]);
                     fflush(stdout);
                 } else
@@ -155,13 +157,67 @@ int main(int argc, char** argv) {
                 continue;
             }
 
+            char *copy = (char*) malloc(sizeof(char) * BUF_SIZE);
+            strcpy(copy, comandi[j]);
+            if(strcmp(strtok(copy, " "), "for") == 0) for_loop = 1;
 
-    	    // Gestisci redirect
-    	    if(redirect(comandi[j], &cmd_id, subcmd_id, log_out, log_err) == 1) continue;
+            if(for_loop == 1) {
+                int a = 0, b = 0, c = 0, lim = 0;
+                char *var = (char*) malloc(sizeof(char) * BUF_SIZE);
+                char *cmd = (char*) malloc(sizeof(char) * BUF_SIZE);
+                char *cmd_parsed = (char*) malloc(sizeof(char) * BUF_SIZE);
 
-            struct PROCESS p = exec_line(comandi[j], cmd_id, &subcmd_id, log_out, log_err);
-            if (p.status == 65280) printcolor("! Error: command not found.\n", KRED);
-            else if (p.status != 0) { printcolor("Non-zero exit status: ", KMAG); printf("%d\n", p.status); }
+                char *tmp;
+                strcpy(var, strtok(NULL, " "));
+                if(var != NULL) a = 1;
+                if(search_var_name(var) != NULL) azz_var(var);
+                else {
+                    char *make = (char*) malloc(sizeof(char) * BUF_SIZE);
+                    snprintf(make, BUF_SIZE, "var \'%s\' = \'%d'\"", var, 0);
+                    make_var(make);
+                }
+                tmp = strtok(NULL, " ");
+                if(tmp != NULL && strcmp(tmp, "in") == 0) b = 1;
+                char *limite = strtok(NULL, " ");
+                lim = atoi(parse_vars(limite));
+                tmp = strtok(NULL, " ");
+                if(tmp != NULL && strcmp(tmp, "do") == 0) c = 1;
+
+                if(a == 1 && b == 1 && c == 1) {
+                    tmp = strtok(NULL, " ");
+                    while(tmp != NULL && strcmp(tmp, "end") != 0) {
+                        strcat(cmd, tmp);
+                        tmp = strtok(NULL, " ");
+                        if(tmp != NULL) strcat(cmd, " ");
+                        else strcat(cmd, "\0");
+                    }
+                    int start = 0;
+                    for(start = 0; start <= lim; start++) {
+                        // Gestisco variabili
+                        cmd_parsed = parse_vars(cmd);
+                        
+                        struct PROCESS p = exec_line(cmd_parsed, cmd_id, &subcmd_id, log_out, log_err);
+                        if (p.status == 65280) printcolor("! Error: command not found.\n", KRED);
+                        else if (p.status != 0) { printcolor("Non-zero exit status: ", KMAG); printf("%d\n", p.status); }
+                        inc_var(var);
+                    }
+                } else {
+                    printcolor("! Error: for loop not valid.\n", KRED);
+                }
+
+                for_loop = 0;
+            } else {
+                free(copy);
+                // Gestisco variabili
+                comandi[j] = parse_vars(comandi[j]);
+
+                // Gestisci redirect
+                if(redirect(comandi[j], &cmd_id, subcmd_id, log_out, log_err) == 1) continue;
+
+                struct PROCESS p = exec_line(comandi[j], cmd_id, &subcmd_id, log_out, log_err);
+                if (p.status == 65280) printcolor("! Error: command not found.\n", KRED);
+                else if (p.status != 0) { printcolor("Non-zero exit status: ", KMAG); printf("%d\n", p.status); }
+            }
         }
 
         // Controllo dimensione dei file

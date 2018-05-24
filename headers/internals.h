@@ -18,6 +18,8 @@ int search_var_elemento(elemento* el);
 char* search_var_name(char *name);
 char* parse_vars(char *comando);
 int make_var(char *copy_line);
+void inc_var(char *name);
+void azz_var(char *name);
 char *expand_wildcar(char *s);
 
 #endif

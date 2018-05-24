@@ -347,8 +347,8 @@ char* get_prompt(char* prompt) {
 }
 
 int redirect(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err){
-    int flag=0;
-    int flags; //append, normal
+    int flag=0; // Se ci sono > o < l'esecuzione è gestita nella funzione, non nel main
+    int permissions; //append, normal
     int red[3], n[3], s[3];
     int len = strlen(c);
     char new_error[len], new_input[len], new_output[len];
@@ -360,9 +360,9 @@ int redirect(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err){
             int file_start = i + 1;
             if(c[file_start]=='>'){ // append
                 file_start++;
-                flags= 2;
+                permissions= 2;
             } else { //normal
-                flags= 1;
+                permissions= 1;
                 }
 
             while(c[file_start]==' ') file_start++;
@@ -374,11 +374,10 @@ int redirect(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err){
             new_file[file_end + 2 - file_start] = '\0';
 
             if (c[i]=='<'){//input
-            //rintf("OOOK\n");
-            // red[0]=1;
+              red[0]=1;
             // s[0]= dup(0);
-            strcpy(new_input,new_file);
-            n[0]= open(new_input, O_RDWR | O_APPEND);
+              strcpy(new_input,new_file);
+              n[0]= open(new_input, O_RDWR | O_APPEND);
             if(n[0]<0){ printf("Cannot use %s\n",new_input); return 1;}
 
 
@@ -387,18 +386,18 @@ int redirect(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err){
                 i--;
                 red[2]=1;
                 s[2]=dup(2);
-                n[2] = open(new_error, O_RDWR | (flags==2? O_CREAT | O_APPEND : O_CREAT | O_TRUNC) , 0644);
+                n[2] = open(new_error, O_RDWR | (permissions==2? O_CREAT | O_APPEND : O_CREAT | O_TRUNC) , 0644);
             } else { //output
                 strcpy(new_output,new_file);
                 //printf("new_output: %s\n",new_output);
                 red[1]=1;
                 s[1]=dup(1);
-                n[1] = open(new_output, O_RDWR | (flags==2? O_CREAT | O_APPEND : O_CREAT | O_TRUNC) , 0644);
+                n[1] = open(new_output, O_RDWR | (permissions==2? O_CREAT | O_APPEND : O_CREAT | O_TRUNC) , 0644);
             }
 
             if(!cmd_saved){
                 flag=1; //l'esecuzione è stata gestita nella funzione
-                *cmd_id++;
+                *(cmd_id)++;
                 //salvo il comando da eseguire
                 strcpy(cmd, c);
                 cmd[i]='\0';
@@ -420,9 +419,11 @@ int redirect(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err){
         }
 
         p = exec_cmd(cmd);
-
-        write_to(n[0], p.stdin, open("/dev/null", O_RDWR));
-        close(p.stdin);
+ 	
+	if(red[0]==1){
+	   write_to(n[0], p.stdin, open("/dev/null", O_RDWR));
+	   close(p.stdin);
+	}
 
         wait(&p.status);
         log_process(p, cmd, *cmd_id, subcmd_id, (int[]){ log_out, log_err, 1, 2 });

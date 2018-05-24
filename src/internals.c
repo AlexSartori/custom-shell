@@ -227,10 +227,35 @@ int make_var(char *copy_line) {
     return 0;
 }
 
+void inc_var(char *name) {
+    int i;
+    for(i=0; i<vector_total(&vector_vars); i++) {
+        elemento* tmp;
+        tmp = (elemento*)vector_get(&vector_vars, i);
+
+        if(strcmp(name, tmp->name) == 0) {
+            snprintf(tmp->data, 100, "%d", atoi(tmp -> data) + 1);
+        }
+
+    }
+}
+
+void azz_var(char *name) {
+    int i;
+    for(i=0; i<vector_total(&vector_vars); i++) {
+        elemento* tmp;
+        tmp = (elemento*)vector_get(&vector_vars, i);
+
+        if(strcmp(name, tmp->name) == 0) {
+            snprintf(tmp->data, 100, "%d", 0);
+        }
+    }
+}
+
 //***************** GESTIONE HISTORY
 
 int print_history(char *hist_arg) {
-    
+    /*
 	HIST_ENTRY** hist = history_list();
     int n; // Quanti elementi della cronologia mostrare
 
@@ -243,6 +268,7 @@ int print_history(char *hist_arg) {
         printf("  %d\t%s\n", i + history_base, hist[i]->line);
 
     return 0;
+    */
 
 }
 
