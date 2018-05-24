@@ -19,7 +19,7 @@ int vector_total(vector *v)
     return v->total;
 }
 
-static void vector_resize(vector *v, int capacity)
+/* static */ void vector_resize(vector *v, int capacity)
 {
     void **items = realloc(v->items, sizeof(void *) * capacity);
     if (items) {

@@ -22,6 +22,7 @@ void vectors_initializer() {
     Se in comando è presente un alias lo sostituisce e ritorna una nuova stringa
 */
 char* parse_alias(char* comando) {
+    // printf("---   Parse alias: '%s'\n", comando);
     char *init = (char*)malloc(sizeof(char)*(strlen(comando)));
     strcpy(init, comando);
     char *token = strtok(comando, " "), *ns;
@@ -168,6 +169,8 @@ char* parse_vars(char *comando) {
             var[z] = '\0';
             //printf("FOUND VAR: %s\n", var);
             data = search_var_name(var);
+            // Cerca anche nelle variabili globali
+            if (data == NULL) data = getenv(var);
 
             if(data == NULL) {
                 printcolor("! Error: variable not found\n", KRED);
@@ -196,7 +199,7 @@ int make_var(char *copy_line) {
     char *content = (char*)malloc(sizeof(char) * strlen(copy_line));
     int active = 0, first = 1, var_index = 0, content_index = 0, i;
 
-    for(i=0; copy_line[i]!='\0'; i++) {
+    for(i = 0; copy_line[i] != '\0'; i++) {
         if(active == 1 && first == 1) var[var_index++] = copy_line[i];
         if(active == 1 && first == 0) content[content_index++] = copy_line[i];
         if(copy_line[i] == '\'' && active == 0) active = 1;

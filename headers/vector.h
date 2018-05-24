@@ -21,7 +21,7 @@ typedef struct elemento {
 
 void vector_init(vector *);
 int vector_total(vector *);
-static void vector_resize(vector *, int);
+/* static */ void vector_resize(vector *, int);
 void vector_add(vector *, void *);
 void vector_set(vector *, int, void *);
 void *vector_get(vector *, int);

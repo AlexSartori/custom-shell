@@ -18,33 +18,13 @@
 
 
 char *comando, prompt[BUF_SIZE];                        // Buffer per l'input dell'utente e il prompt
-int log_out, log_err;                                   // File di log
-int cmd_id = 0, subcmd_id = 0;                          // ID incrementale del comando, per il file di log
 struct OPTIONS opt;                                     // Opzioni con cui è stata chiamata la shell
 
-void init_shell(struct OPTIONS opt, int argc, char** argv) {
-    opt = read_options(argc, argv);                     // Leggi gli argomenti di chiamata
-    child_cmd_pid = 0;                                  // Pid del comando figlio
-    save_ret_code = opt.save_ret_code;                  // Se salvare il codice di ritorno
-    run_timeout = opt.timeout;                          // Timeout esecuzione figli
-
-    rl_bind_key('\t', rl_complete);                     // Tab autocomplete
-
-    signal(SIGINT, sigHandler);                         // Intercetta Ctrl-C e timeout
-    signal(SIGALRM, sigHandler);
-
-    log_out = open(opt.log_out_path,                    // File di log stdout
-        O_RDWR | O_CREAT | O_APPEND, 0644);
-    log_err = open(opt.log_err_path,                    // File di log stderr
-        O_RDWR | O_CREAT | O_APPEND, 0644);
-
-    vectors_initializer();                              // Inizializza array alias e variabili
-}
 
 
 void shell_exit(int status) {
     printf("\n");
-    free(comando);                                      // Libera i buffer allocati
+    //free(comando);                                      // Libera i buffer allocati
 
     close(log_out);                                     // Chiudi i file di log
     close(log_err);
@@ -52,8 +32,39 @@ void shell_exit(int status) {
 }
 
 
+void init_shell(struct OPTIONS opt, int argc, char** argv) {
+    opt = read_options(argc, argv);                     // Leggi gli argomenti di chiamata
+    child_cmd_pid = 0;                                  // Pid del comando figlio
+    save_ret_code = opt.save_ret_code;                  // Se salvare il codice di ritorno
+    run_timeout = opt.timeout;                          // Timeout esecuzione figli
+    cmd_id = subcmd_id = 0;                             // Id incrementale del comando e sottocomandi_pv
+
+    rl_bind_key('\t', rl_complete);                     // Tab autocomplete
+    stifle_history(opt.hist_size);                      // Controlla dimensione history
+
+    signal(SIGINT, sigHandler);                         // Intercetta Ctrl-C e timeout
+    signal(SIGALRM, sigHandler);
+
+    log_out = open(opt.log_out_path,                    // File di log stdout
+                   O_RDWR | O_CREAT | O_APPEND, 0644);
+    if (log_out == -1) {
+        printcolor("Cannot open stdout log, quitting.", KRED);
+        shell_exit(-1);
+    }
+
+    log_err = open(opt.log_err_path,                    // File di log stderr
+                   O_RDWR | O_CREAT | O_APPEND, 0644);
+    if (log_err == -1) {
+        printcolor("Cannot open stderr log, quitting.", KRED);
+        shell_exit(-1);
+    }
+
+    vectors_initializer();                              // Inizializza array alias e variabili
+}
+
+
 void sigHandler(int sig) {
-    // printf("Parent (%d) received signal: %d\n", getpid(), sig);
+    // printf("\nParent (%d) received signal: %d\n", getpid(), sig);
 
     if (sig == SIGKILL || sig == SIGTERM)
         shell_exit(0);
@@ -61,177 +72,65 @@ void sigHandler(int sig) {
         if(child_cmd_pid != 0) kill(child_cmd_pid, 9);
     } else if (sig == SIGINT && child_cmd_pid != 0)     // Ctrl-C per il figlio
         kill(child_cmd_pid, 9);
-    else                                                // Ctrl-C per la shell
+    else if (sig == SIGINT && child_cmd_pid == 0)       // Ctrl-C per la shell
         shell_exit(0);
+    else
+        fprintf(stderr, "Unhandled signal: %d\n", sig);
 }
 
 
 int main(int argc, char** argv) {
     init_shell(opt, argc, argv);
 
-    int for_loop = 0;
-
     while (1) {
+        child_cmd_pid = 0;                              // Nessun figlio in esecuzione
         get_prompt(prompt);                             // Crea il prompt
         free(comando);                                  // Libera la memoria del loop precedente
         comando = readline(prompt);                     // Leggi l'input dell'utente
 
-        child_cmd_pid = 0;                              // Nessun figlio in esecuzione
         if (run_timeout != -1) alarm(run_timeout);      // Timeout di esecuzione figli
 
         if (comando == NULL) break;                     // Ctrl-D
         if (strlen(comando) == 0) continue;             // Linea vuota
 
         add_history(comando);                           // Gestisci history
-        stifle_history(opt.hist_size);                  // Controlla dimensione history
+
         comando = parse_alias(comando);                 // Gestisci alias
-        comando = expand_wildcar(comando);              // Gestisci wildcards
+        comando = expand_wildcard(comando);             // Gestisci wildcards
 
 
         // Gestisco punto e virgola
-        int pv = 0, cont = 0, i, j;
-        for(i = 0; comando[i] != '\0'; i++) if(comando[i] == ';') pv++;
-        char* comandi[pv + 1];
-        if (pv!=0) {
-            cont = gest_pv(comandi, comando);
-        } else {
-            cont = 1;
-            comandi[cont - 1] = comando;
-        }
+        char** comandi_pv = gest_pv(comando);
 
-        for (j=0; j<cont; j++){
-            cmd_id++;
-            subcmd_id = 0;
-
-            if(comandi[j] == NULL || strlen(comandi[j]) == 0 ) continue;
+        int j;
+        for (j = 0; comandi_pv[j] != NULL; j++) {
+            // printf("\t--- comandi_pv[%d] = '%s'\n", j, comandi_pv[j]);
+            cmd_id++; subcmd_id = 0;
 
             // Gestisco &&
-            int br;
-            br = gest_and(comandi[j], &cmd_id, subcmd_id , log_out, log_err);
-            if (br == -1){
-                 continue; // Ho incontrato break nell'&&
+            int br = gest_and(comandi_pv[j]);
+            if (br == -1) {
+                printcolor("! Error: One of the command failed.\n", KRED);
+                continue; // Ho incontrato break nell'&&
             } else {
-                 comandi[j]= comandi[j] + br;
+                 comandi_pv[j] = comandi_pv[j] + br;
             }
 
-	        // Gestisco redirect
-            if(redirect(comandi[j], &cmd_id, subcmd_id, log_out, log_err) == 1) continue;
-
-            // Controlla se il comando è fatto di soli spazi
-            int spazi = 0, k;
-            for (k=0; k<strlen(comandi[j]); k++) if (comandi[j][k]== ' ') spazi++;
-            if (strlen(comandi[j]) == spazi) continue;
-
-            // Tolgo gli spazi finali
-            int t = strlen(comandi[j]) - 1;
-            while (comandi[j][t] == ' ') t--;
-            comandi[j][t+1] = '\0';
-
-            if (comandi[j][t] == '&') {
-                comandi[j][t] = '\0';
+            int t = strlen(comandi_pv[j]) - 1;
+            if (comandi_pv[j][t] == '&') {
+                comandi_pv[j][t] = '\0';
 
                 pid_t pid = fork();
                 if (pid < 0) perror("Cannot fork for background execution");
                 else if (pid == 0) {
-                    printf("[%d] Running in backgound: %s\n", getpid(), comandi[j]);
+                    printf("[%d] Running in backgound: %s\n", getpid(), comandi_pv[j]);
                     close(0);
-                    int n = open("/dev/null", O_RDWR);
-                    // dup2(n, 1);
-                    // dup2(n, 2);
-                    exec_line(comandi[j], cmd_id, &subcmd_id, n, n);
-                    printf("\n[%d] Done: %s\n", getpid(), comandi[j]);
+                    exec_line(comandi_pv[j]);
+                    printf("\n[%d] Done: %s\n", getpid(), comandi_pv[j]);
                     fflush(stdout);
-                } else
-                    child_cmd_pid = pid;
-
-                continue;
-            }
-
-            char *copy = (char*) malloc(sizeof(char) * BUF_SIZE);
-            strcpy(copy, comandi[j]);
-            if(strcmp(strtok(copy, " "), "for") == 0) for_loop = 1;
-
-
-            /*  
-                Implementazione base di gestione cicli for basati su contatore
-                Es: for i in 5 do echo i = $i done
-
-                Se ci sono cicli for, eseguo questo branch
-            */
-
-            if(for_loop == 1) {
-                int a = 0, b = 0, c = 0, lim = 0;
-                char *var = (char*) malloc(sizeof(char) * BUF_SIZE);
-                char *cmd = (char*) malloc(sizeof(char) * BUF_SIZE);
-                char *cmd_parsed = (char*) malloc(sizeof(char) * BUF_SIZE);
-
-
-                //Controllo la sintassi del comando
-                char *tmp;
-                strcpy(var, strtok(NULL, " "));
-
-                //Viene trovata una variabile
-                if(var != NULL) a = 1;
-
-                //Nel caso esista viene azzerata, altrimenti ne creo una
-                if(search_var_name(var) != NULL) clear_var(var);
-                else {
-                    char *make = (char*) malloc(sizeof(char) * BUF_SIZE);
-                    snprintf(make, BUF_SIZE, "var \'%s\' = \'%d'\"", var, 0);
-                    make_var(make);
                 }
-
-                tmp = strtok(NULL, " ");
-                if(tmp != NULL && strcmp(tmp, "in") == 0) b = 1;
-
-                //Catturo il limite del ciclo for, nel caso sia un intero posso fare casting
-                //Nel caso sia una variabile posso sostituirla con il suo valore
-                char *limite = strtok(NULL, " ");
-                lim = atoi(parse_vars(limite));
-                tmp = strtok(NULL, " ");
-                if(tmp != NULL && strcmp(tmp, "do") == 0) c = 1;
-
-                //Se non ho errori di sintassi, catturo il comando da ripetere
-                if(a == 1 && b == 1 && c == 1) {
-                    tmp = strtok(NULL, " ");
-                    while(tmp != NULL && strcmp(tmp, "done") != 0) {
-                        strcat(cmd, tmp);
-                        tmp = strtok(NULL, " ");
-                        if(tmp != NULL) strcat(cmd, " ");
-                        else strcat(cmd, "\0");
-                    }
-                    int start = 0;
-
-                    //Eseguo lim volte il parsing del comando per catturare variabili e l'esecuzione
-                    //Incremento la variabile della shell associata al contatore
-                    for(start = 0; start <= lim; start++) {
-                        // Gestisco variabili
-                        cmd_parsed = parse_vars(cmd);
-
-                        struct PROCESS p = exec_line(cmd_parsed, cmd_id, &subcmd_id, log_out, log_err);
-                        if (p.status == 65280) printcolor("! Error: command not found.\n", KRED);
-                        else if (p.status != 0) { printcolor("Non-zero exit status: ", KMAG); printf("%d\n", p.status); }
-                        inc_var(var);
-                    }
-                } else {
-                    printcolor("! Error: for loop not valid.\n", KRED);
-                }
-
-                for_loop = 0;
-
-            /*
-                Se non ci sono cicli for eseguo questo branch
-            */
-
             } else {
-                free(copy);
-                // Gestisco variabili
-                comandi[j] = parse_vars(comandi[j]);
-
-                // Gestisci redirect
-                if(redirect(comandi[j], &cmd_id, subcmd_id, log_out, log_err) == 1) continue;
-
-                struct PROCESS p = exec_line(comandi[j], cmd_id, &subcmd_id, log_out, log_err);
+                struct PROCESS p = exec_line(comandi_pv[j]);
                 if (p.status == 65280) printcolor("! Error: command not found.\n", KRED);
                 else if (p.status != 0) { printcolor("Non-zero exit status: ", KMAG); printf("%d\n", p.status); }
             }

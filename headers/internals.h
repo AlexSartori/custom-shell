@@ -3,13 +3,16 @@
 
 #define MAXSIZE 1024
 
+#include "../headers/exec.h"
+
 int print_history(char *hist_arg);
-char *expand_wildcar(char *s);
+char *expand_wildcard(char *s);
 
 
 // Parsing della linea di comando
-int gest_pv (char **comandi, char *comando);
-int gest_and(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err);
-int redirect(char* c,int* cmd_id, int subcmd_id, int log_out, int log_err);
+char** gest_pv (char *comando);
+int gest_and(char* c);
+int redirect(char* c, struct PROCESS *ret_p);
+int do_for(char** args);
 
 #endif

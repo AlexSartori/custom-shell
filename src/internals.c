@@ -3,10 +3,70 @@
 #include <unistd.h>
 #include <string.h>
 #include <readline/history.h>
+#include <sys/wait.h>
+#include <fcntl.h>
 
 #include "../headers/utils.h"
 #include "../headers/vector.h"
+#include "../headers/parsers.h"
 #include "../headers/internals.h"
+
+
+/*
+    Implementazione base di gestione cicli for basati su contatore
+    Es: for i in 5 do echo i = $i done
+*/
+int do_for(char** args) {
+	int a = 0, b = 0, c = 0, lim = 0;
+	char *var = args[1];
+	char *cmd = (char*) malloc(sizeof(char) * BUF_SIZE);
+	char *cmd_parsed = (char*) malloc(sizeof(char) * BUF_SIZE);
+
+	// Viene trovata una variabile
+	if(var != NULL) a = 1;
+
+	// Nel caso esista viene azzerata, altrimenti ne creo una
+	if(search_var_name(var) != NULL) clear_var(var);
+	else {
+		char *make = (char*) malloc(sizeof(char) * BUF_SIZE);
+		snprintf(make, BUF_SIZE, "var \'%s\' = \'%d'\"", var, 0);
+		make_var(make);
+		free(make);
+	}
+
+	if(args[2] != NULL && strcmp(args[2], "in") == 0) b = 1;
+
+	// Catturo il limite del ciclo for, nel caso sia un intero posso fare casting
+	// Nel caso sia una variabile posso sostituirla con il suo valore
+	lim = atoi(parse_vars(args[3]));
+	if(args[4] != NULL && strcmp(args[4], "do") == 0) c = 1;
+
+	//Se non ho errori di sintassi, catturo il comando da ripetere
+	if(a == 1 && b == 1 && c == 1) {
+		int argc = 5;
+		while(args[argc] != NULL && strcmp(args[argc], "done") != 0) {
+			strcat(cmd, args[argc]);
+			strcat(cmd, " ");
+			argc++;
+		}
+		strcat(cmd, "\0");
+
+		// Eseguo lim volte il parsing del comando per catturare variabili e l'esecuzione
+		// Incremento la variabile della shell associata al contatore
+		int start, ret = -1;
+		for(start = 0; start < lim; start++) {
+			// Gestisco variabili
+			cmd_parsed = parse_vars(cmd);
+			exec_line(cmd_parsed);
+			wait(&ret);
+			inc_var(var);
+		}
+		return ret;
+	} else {
+		printcolor("! Error: invalid syntax.\n", KRED);
+		return -1;
+	}
+}
 
 /*
     Stampa la storia dei comandi eseguiti
@@ -37,7 +97,7 @@ int print_history(char *hist_arg) {
     regolari di base
 */
 
-char *expand_wildcar(char *s) {
+char *expand_wildcard(char *s) {
     char *ns = (char* ) malloc(sizeof(char) * MAXSIZE);
     char *ns1 = (char* ) malloc(sizeof(char) * MAXSIZE);
     char *search = (char* ) malloc(sizeof(char) * MAXSIZE);
@@ -169,64 +229,167 @@ char *expand_wildcar(char *s) {
 }
 
 
-/* 
+/*
     Legge il comando e splitta
     in corrispondenza
-    di ';' eliminando gli spazi 
+    di ';' eliminando gli spazi
 */
-int gest_pv (char **comandi, char *comando){
-    char* c = strtok(comando,";");
-    int cont_comandi = 0;
-    while (c){
-        int inizio = 0;
-        int fine = strlen(c);
+char** gest_pv (char *comando) {
+	int pv = 0, i; for(i = 0; comando[i]; i++) if (comando[i] == ';') pv++;
+	char** comandi = (char**)malloc(sizeof(char*)*pv+1); // Ultimo elemento NULL
+
+	int cont_comandi = 0;
+    char* c = strtok(comando, ";");
+
+    while (c) {
+        int inizio = 0, fine = strlen(c);
         if (fine == 0) continue; // Comando vuoto
-        while(c[inizio] == ' ' && inizio != fine) inizio++;
+
+		// Rimuovo gli spazi
+        while (c[inizio] == ' ' && inizio != fine) inizio++;
         c = c + inizio;
-        if( inizio == fine){ // Solo spazi
-	     c = strtok(NULL,";");
-         continue;
+        if (inizio == fine) { // Solo spazi
+			c = strtok(NULL,";");
+         	continue;
 	    }
+
         inizio = 0;
         fine = strlen(c) - 1;
-        while( c[fine - 1] == ' ' && fine != inizio) fine --;
-        if( fine != inizio) c[fine + 1] = '\0';
+        while (c[fine] == ' ' && fine != inizio) fine--;
+        if (fine != inizio) c[fine + 1] = '\0';
 
         comandi[cont_comandi] = c;
         c = strtok(NULL,";");
         cont_comandi++;
     }
-    return cont_comandi;
+
+	comandi[cont_comandi] = NULL;
+    return comandi;
 }
 
 /*
     Implementa gestione dei comandi del tipo "cmd1 && cmd2 && cmd3"
 */
-int gest_and(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err) {
-    int i = 0;
-    int br = 0;
-    int length= strlen(c);
+int gest_and(char* c) {
+    int i = 0, br = 0, length = strlen(c);
     char tmp[length];
 
-    while (i < length && length > 0){
-        strcpy(tmp,c);
-        if (c[i] == '&' && c[i+1] == '&' && i!= length - 1) {
+    while (i < length && length > 0) {
+		strcpy(tmp, c);
+        if (i != length - 1 && c[i] == '&' && c[i+1] == '&') {
             tmp[i] = '\0';
-            struct PROCESS p1 = exec_line(tmp, *(cmd_id), &subcmd_id, log_out, log_err);
+            struct PROCESS p1 = exec_line(tmp);
 
-            if( p1.status != 0 ){
-                printcolor("! Error: One of the command failed.\n", KRED);
+            if (p1.status != 0 ) {
                 br = -1;
                 break;
             } else {
-                (*(cmd_id))++;
+                cmd_id++;
                 c = c+i+2;
-                br = br+ i+2;
+                br = br+i+2;
                 length = strlen(c);
-                i = -1 ;
+                i = -1;
             }
         }
-    i++;
+    	i++;
     }
-return br;
+	return br;
+}
+
+
+/*
+	Controlla glioperatori <, >, 2>, &>, >>
+*/
+int redirect(char* c, struct PROCESS *ret_p) {
+    int flag = 0; // Se ci sono > o < l'esecuzione è gestita nella funzione, non nel main
+    int permissions = O_RDWR; // Append, normal
+    int red[3], n[3];
+    int len = strlen(c);
+    char new_error[len], new_input[len], new_output[len], cmd[len];
+    int cmd_saved = 0, i = 0;
+
+    while (i < len) {
+        if (c[i] == '>' || c[i] == '<') { // Output, error o input
+            int file_start = i + 1;
+            if (c[file_start] == '>'){ // Append
+                file_start++;
+                permissions |= O_CREAT | O_APPEND;
+            } else { // Normal
+                permissions |= O_CREAT | O_TRUNC;
+            }
+
+            while (c[file_start] == ' ') file_start++;
+            int file_end = file_start;
+            while(c[file_end] != ' ' && c[file_end] != '\0') file_end++;
+            char new_file[len - file_start + 3];
+            strcpy(new_file,"./");
+            strcat(new_file, c + file_start);
+            new_file[file_end + 2 - file_start] = '\0';
+
+            if (c[i] == '<') { // Input
+				red[0] = 1;
+				strcpy(new_input, new_file);
+				n[0] = open(new_input, O_RDWR | O_APPEND);
+				if (n[0] < 0) { printf("Cannot use %s\n", new_input); return 1; }
+            } else if (c[i-1] == '2'){ // Error
+                strcpy(new_error, new_file);
+                i--;
+                red[2] = 1;
+                n[2] = open(new_error, permissions, 0644);
+            } else { // Output
+                strcpy(new_output, new_file);
+                //printf("new_output: %s\n",new_output);
+                red[1] = 1;
+                n[1] = open(new_output, permissions, 0644);
+            }
+
+            if (!cmd_saved) {
+                flag = 1; // L'esecuzione è stata gestita nella funzione
+                cmd_id++;
+                // Salvo il comando da eseguire
+                strcpy(cmd, c);
+                cmd[i] = '\0';
+                cmd_saved = 1;
+            }
+
+            i = file_end;
+        } else i++; // Nessuno dei precedenti
+    }
+
+    if (flag) {
+        // int i;
+        // for (i = 1; i < 3; i++) {
+        //     if (red[i] == 1) {
+        //         dup2(n[i], i);
+        //         close(n[i]);
+        //     }
+        // }
+
+        struct PROCESS p = exec_cmd(cmd);
+		ret_p->stdout = p.stdout;
+		ret_p->stderr = p.stderr;
+		ret_p->stdin = p.stdin;
+
+		if (red[0] == 1) {
+		   write_to(n[0], p.stdin, open("/dev/null", O_RDWR));
+		   close(p.stdin);
+		}
+		if (red[1] == 1) {
+		   write_to(p.stdout, n[1], open("/dev/null", O_RDWR));
+		   close(p.stdout);
+		}
+		if (red[2] == 1) {
+		   write_to(p.stderr, n[2], open("/dev/null", O_RDWR));
+		   close(p.stdin);
+		}
+		wait(&(ret_p->status));
+
+        // for(i = 1; i < 3; i++){
+        //     if (red[i] == 1) {
+        //         dup2(s[i], i);
+        //         close(s[i]);
+        //     }
+        // }
+    }
+	return flag;
 }

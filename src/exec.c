@@ -44,11 +44,11 @@ void signal_child(int sig) {
     Returns:
         Struct con le info sul processo
 */
-struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, int log_err) {
+struct PROCESS exec_line(char* line) {
     static int LOG_CMD = 1;
     struct PROCESS p, pre_pipe;
     // printf("----    Exec line: %s\n", line);
-    // printf("Running tasks: %d\n", child_cmd_pid);
+    // printf("Running task: %d\n", child_cmd_pid);
 
 
     // Finché l'ultimo carattere è un pipe o uno spazio, lo tolgo
@@ -64,19 +64,21 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, in
         // perché mi serve un processo con lo stdout ancora tutto nel buffer.
         int old_log_cmd = LOG_CMD;
         LOG_CMD = 0;
-        pre_pipe = exec_line(line, cmd_id, subcmd_id, log_out, log_err);
+        pre_pipe = exec_line(line);
         LOG_CMD = old_log_cmd;
         wait(&pre_pipe.status);
         close(pre_pipe.stdin);
     }
 
     // Seconda parte del pipe o l'unico comando ricevuto
-    (*subcmd_id)++;
-    p = exec_cmd(line+(i+1));
+    subcmd_id++;
+    if (redirect(line+(i+1), &p) == 1) { // C'era un redirect ed è stato gestito nella funzione
+        ;
+    } else
+        p = exec_cmd(line+(i+1));
 
-    if (i >= 0) {
-        // Piping
-        log_process(pre_pipe, line, cmd_id, (*subcmd_id)-1, (int[]){ log_out, log_err, p.stdin, 2 });
+    if (i >= 0) { // Piping
+        log_process(pre_pipe, line, cmd_id, subcmd_id-1, (int[]){ log_out, log_err, p.stdin, 2 });
         close(pre_pipe.stdout);
         close(pre_pipe.stderr);
         close(p.stdin);
@@ -84,7 +86,7 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, in
 
     if (LOG_CMD) {
         wait(&p.status);
-        log_process(p, line+(i+1), cmd_id, *subcmd_id, (int[]){ log_out, log_err, 1, 2 });
+        log_process(p, line+(i+1), cmd_id, subcmd_id, (int[]){ log_out, log_err, 1, 2 });
         close(p.stdout);
         close(p.stderr);
     }
@@ -98,14 +100,21 @@ struct PROCESS exec_line(char* line, int cmd_id, int* subcmd_id, int log_out, in
     comando è una funzione interna.
     TODO magari espandendo variabili e percorsi
 */
-struct PROCESS exec_cmd(char* line) {
+struct PROCESS exec_cmd(char* l) {
+    char* line = (char*)malloc(sizeof(char)*strlen(l));
+    char* line_copy = (char*)malloc(sizeof(char)*strlen(l));
+    strcpy(line, l);
+    strcpy(line_copy, l);
+
     struct PROCESS dummy; // = fork_cmd((char*[]) {";", NULL});
     dummy.stdout = dummy.stderr = dummy.stdin = open("/dev/null", O_RDWR);
     // printf("----    exec_cmd: %s\n", line);
 
+    // Sostituisci variabili (se non è un for)
+    if (line[0] != 'f' && line[1] != 'o' && line[2] != 'r')
+        line = parse_vars(line);
+
     // Separo comando e argomenti
-    char *copy_line = (char*) malloc(sizeof(char) * strlen(line));
-    strcpy(copy_line, line);
     int spazi = 0, i = 0, c;
     for (c = 0; line[c] != '\0'; c++) if (line[c] == ' ') spazi++;
     char* args[spazi+1]; // L'ultimo elemento dev'essere NULL
@@ -121,7 +130,6 @@ struct PROCESS exec_cmd(char* line) {
     string_tolower(args[0]);
 
     // Controllo se è un comando che voglio gestire internamente
-    // TODO anche questi devono avere I/O su file?
     if (strcmp(args[0], "clear") == 0)
         dummy.status = clear();
     else if (strcmp(args[0], "exit") == 0)
@@ -133,19 +141,21 @@ struct PROCESS exec_cmd(char* line) {
         if(tmp == NULL) {
             return exec_internal(list_alias, NULL);
         } else {
-            dummy.status = make_alias(copy_line);
+            dummy.status = make_alias(line_copy);
         }
     } else if (strcmp(args[0], "var") == 0) {
         char *tmp = args[1];
         if(tmp == NULL) {
             return exec_internal(list_vars, NULL);
         } else {
-            dummy.status = make_var(copy_line);
+            dummy.status = make_var(line_copy);
         }
     } else if (strcmp(args[0], "cd") == 0) {
         dummy.status = chdir(args[1]);
     } else if (strcmp(args[0], "history") == 0) {
         return exec_internal(print_history, args[1]);
+    } else if (strcmp(args[0], "for") == 0) {
+        dummy.status = do_for(args);
     } else {
         // È un comando shell
         return fork_cmd(args);
