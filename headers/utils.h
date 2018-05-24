@@ -34,8 +34,5 @@ void log_process(struct PROCESS p, char* cmd, int cmd_id, int subcmd_id, int* st
 char* get_prompt(char* prompt);
 struct OPTIONS read_options(int argc, char** argv);
 void sigHandler(int sig);
-int gest_pv (char **comandi, char *comando);
-int gest_and(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err);
-int redirect(char* c,int* cmd_id, int subcmd_id, int log_out, int log_err);
 
 #endif

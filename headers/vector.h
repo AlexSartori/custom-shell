@@ -9,6 +9,11 @@ typedef struct vector {
     int total;
 } vector;
 
+typedef struct elemento {
+    char* name;
+    char* data;
+} elemento;
+
 void vector_init(vector *);
 int vector_total(vector *);
 static void vector_resize(vector *, int);

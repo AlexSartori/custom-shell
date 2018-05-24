@@ -14,88 +14,78 @@
 #include "../headers/utils.h"
 #include "../headers/vector.h"
 #include "../headers/internals.h"
+#include "../headers/parsers.h"
 
 
-// Buffer per l'input dell'utente e il prompt
-char *comando, prompt[BUF_SIZE];
-int log_out, log_err; // File di log
-int cmd_id = 0, subcmd_id = 0; // ID incrementale del comando, per il file di log
-struct OPTIONS opt; // Opzioni con cui è stata chiamata la shell
+char *comando, prompt[BUF_SIZE];                        // Buffer per l'input dell'utente e il prompt
+int log_out, log_err;                                   // File di log
+int cmd_id = 0, subcmd_id = 0;                          // ID incrementale del comando, per il file di log
+struct OPTIONS opt;                                     // Opzioni con cui è stata chiamata la shell
 
-void init_shell(struct OPTIONS opt) {
-    child_cmd_pid = 0;
-    save_ret_code = 0;
-    run_timeout = -1;
+void init_shell(struct OPTIONS opt, int argc, char** argv) {
+    opt = read_options(argc, argv);                     // Leggi gli argomenti di chiamata
+    child_cmd_pid = 0;                                  // Pid del comando figlio
+    save_ret_code = opt.save_ret_code;                  // Se salvare il codice di ritorno
+    run_timeout = opt.timeout;                          // Timeout esecuzione figli
 
-    // Tab autocomplete
-    rl_bind_key('\t', rl_complete);
+    rl_bind_key('\t', rl_complete);                     // Tab autocomplete
 
-    // Catch Ctrl-C and execution timeout
-    signal(SIGINT, sigHandler);
+    signal(SIGINT, sigHandler);                         // Intercetta Ctrl-C e timeout
     signal(SIGALRM, sigHandler);
 
-    // Apri i file di log
-    log_out = open(opt.log_out_path, O_RDWR | O_CREAT | O_APPEND, 0644);
-    log_err = open(opt.log_err_path, O_RDWR | O_CREAT | O_APPEND, 0644);
+    log_out = open(opt.log_out_path,                    // File di log stdout
+        O_RDWR | O_CREAT | O_APPEND, 0644);
+    log_err = open(opt.log_err_path,                    // File di log stderr
+        O_RDWR | O_CREAT | O_APPEND, 0644);
 
-    // Inizializza array alias e variabili
-    vectors_initializer();
+    vectors_initializer();                              // Inizializza array alias e variabili
 }
 
 
 void shell_exit(int status) {
     printf("\n");
-    // Libera i buffer
-    free(comando);
-    // Chiudi i file
-    close(log_out);
+    free(comando);                                      // Libera i buffer allocati
+
+    close(log_out);                                     // Chiudi i file di log
     close(log_err);
-    // Esci
     exit(status);
 }
 
 
 void sigHandler(int sig) {
     // printf("Parent (%d) received signal: %d\n", getpid(), sig);
+
     if (sig == SIGKILL || sig == SIGTERM)
         shell_exit(0);
-    else if (sig == SIGALRM) {
-        if(child_cmd_pid != 0) kill(child_cmd_pid, 9); // printf("%s\n", "Yolo");
-    } else if (sig == SIGINT && child_cmd_pid != 0) // Killo il figlio bloccato
+    else if (sig == SIGALRM) {                          // Timeout esecuzione
+        if(child_cmd_pid != 0) kill(child_cmd_pid, 9);
+    } else if (sig == SIGINT && child_cmd_pid != 0)     // Ctrl-C per il figlio
         kill(child_cmd_pid, 9);
-    else // Ctrl-C e nessun processo in esecuzione -> faccio uscire la shell
+    else                                                // Ctrl-C per la shell
         shell_exit(0);
 }
 
 
 int main(int argc, char** argv) {
-    opt = read_options(argc, argv);
-    init_shell(opt);
-
-    save_ret_code = opt.save_ret_code;
-    run_timeout = opt.timeout;
+    init_shell(opt, argc, argv);
 
     int for_loop = 0;
 
-    while(1) {
-        get_prompt(prompt);
-        comando = readline(prompt);
+    while (1) {
+        get_prompt(prompt);                             // Crea il prompt
+        free(comando);                                  // Libera la memoria del loop precedente
+        comando = readline(prompt);                     // Leggi l'input dell'utente
 
-        child_cmd_pid = 0;
-        alarm(run_timeout);
+        child_cmd_pid = 0;                              // Nessun figlio in esecuzione
+        if (run_timeout != -1) alarm(run_timeout);      // Timeout di esecuione figli
 
-        if (comando == NULL) break; // Ctrl-D
-        if (strlen(comando) == 0) continue; // Linea vuota
+        if (comando == NULL) break;                     // Ctrl-D
+        if (strlen(comando) == 0) continue;             // Linea vuota
 
-        // Gestisco history
-        add_history(comando);
-        stifle_history(opt.hist_size);
-
-        // Gestisco alias
-        comando = parse_alias(comando);
-
-        // Gestisco wildcards
-        comando = expand_wildcar(comando);
+        add_history(comando);                           // Gestisci history
+        stifle_history(opt.hist_size);                  // Controlla dimensione history
+        comando = parse_alias(comando);                 // Gestisci alias
+        comando = expand_wildcar(comando);              // Gestisci wildcards
 
 
         // Gestisco punto e virgola
@@ -195,7 +185,7 @@ int main(int argc, char** argv) {
                     for(start = 0; start <= lim; start++) {
                         // Gestisco variabili
                         cmd_parsed = parse_vars(cmd);
-                        
+
                         struct PROCESS p = exec_line(cmd_parsed, cmd_id, &subcmd_id, log_out, log_err);
                         if (p.status == 65280) printcolor("! Error: command not found.\n", KRED);
                         else if (p.status != 0) { printcolor("Non-zero exit status: ", KMAG); printf("%d\n", p.status); }

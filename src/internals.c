@@ -1,258 +1,13 @@
-#include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 #include <readline/history.h>
 
 #include "../headers/utils.h"
 #include "../headers/vector.h"
 #include "../headers/internals.h"
 
-
-vector vector_alias;
-vector vector_vars;
-
-void vectors_initializer() {
-    vector_init(&vector_alias);
-    vector_init(&vector_vars);
-}
-
-//***************** GESTIONE ALIAS
-
-char* parse_alias(char* comando) {
-    char *init = (char*)malloc(sizeof(char)*(strlen(comando)));
-    strcpy(init, comando);
-    char* token = strtok(comando, " ");
-    char *ns;
-    int ok = 0, i;
-    for(i=0;i<vector_total(&vector_alias);i++) {
-        elemento* tmp;
-        tmp = (elemento*)vector_get(&vector_alias, i);
-
-        if(strcmp(token, tmp->name) == 0) {
-            ok = 1;
-            ns = (char*)malloc(sizeof(char)*(strlen(comando) + strlen(tmp->data)));
-            strcpy(ns, tmp->data);
-            token = strtok(NULL, " ");
-            while(token) {
-                strcat(ns, " ");
-                strcat(ns, token);
-                token = strtok(NULL, " ");
-            }
-            strcat(ns, "\0");
-            break;
-        }
-
-    }
-
-    if(ok == 0) return init;
-    else return ns;
-}
-
-int list_alias() {
-    elemento* tmp;
-    int i;
-    for(i=0; i<vector_total(&vector_alias); i++) {
-        tmp = (elemento*)vector_get(&vector_alias, i);
-        printf("%s = %s\n", tmp->name, tmp->data);
-    }
-    return 0;
-}
-
-int search_alias(elemento* el) {
-    int i;
-    for(i=0; i<vector_total(&vector_alias); i++) {
-        elemento* tmp;
-        tmp = (elemento*)vector_get(&vector_alias, i);
-
-        if(strcmp(el->name, tmp->name) == 0) {
-            tmp -> data = el -> data;
-            return 1;
-        }
-
-    }
-
-    return 0;
-}
-
-
-int make_alias(char *copy_line) {
-	char *alias = (char*)malloc(sizeof(char) * strlen(copy_line));
-    char *content = (char*)malloc(sizeof(char) * strlen(copy_line));
-    int active = 0, first = 1, alias_index = 0, content_index = 0, i;
-
-    for(i=0; copy_line[i]!='\0'; i++) {
-        if(active == 1 && first == 1) alias[alias_index++] = copy_line[i];
-        if(active == 1 && first == 0) content[content_index++] = copy_line[i];
-        if(copy_line[i] == '\'' && active == 0) active = 1;
-        else if(copy_line[i] == '\'' && active == 1) {
-            active = 0;
-            first = 0;
-        }
-    }
-    alias[alias_index-1] = '\0';
-    content[content_index-1] = '\0';
-
-    if(strlen(alias) == 0 || strlen(content) == 0) {
-        printcolor("! Error: format \'alias\'=\'command\'\n", KRED);
-    } else {
-        elemento *insert = (elemento*)malloc(sizeof(elemento));
-        insert -> name = alias;
-        insert -> data = content;
-        if (search_alias(insert) == 1) {
-            printf("Warning: alias \'%s\' has been overwritten\n", alias);
-        } else {
-            vector_add(&vector_alias, insert);
-        }
-    }
-
-    return 0;
-}
-
-//***************** GESTIONE VARIABILI
-
-int list_vars() {
-    elemento* tmp;
-    int i;
-    for(i=0; i<vector_total(&vector_vars); i++) {
-        tmp = (elemento*)vector_get(&vector_vars, i);
-        printf("%s = %s\n", tmp->name, tmp->data);
-    }
-    return 0;
-}
-
-int search_var_elemento(elemento* el) {
-    int i;
-    for(i=0; i<vector_total(&vector_vars); i++) {
-        elemento* tmp;
-        tmp = (elemento*)vector_get(&vector_vars, i);
-
-        if(strcmp(el->name, tmp->name) == 0) {
-            tmp -> data = el -> data;
-            return 1;
-        }
-
-    }
-
-    return 0;
-}
-
-char* search_var_name(char *name) {
-    int i;
-    for(i=0; i<vector_total(&vector_vars); i++) {
-        elemento* tmp;
-        tmp = (elemento*)vector_get(&vector_vars, i);
-
-        if(strcmp(name, tmp->name) == 0) {
-            return tmp -> data;
-        }
-
-    }
-    return NULL;
-}
-
-char* parse_vars(char *comando) {
-    char *c = (char* )malloc(sizeof(char) * strlen(comando)*2);
-    char *var = (char* )malloc(sizeof(char) * strlen(comando));
-    int j = 0;
-    int i = 0;
-    int z = 0;
-    char* data;
-    int k = 0;
-
-    for(i = 0; comando[i]; i++) {
-        if(comando[i] != '$') {
-            c[j] = comando[i];
-            j++;
-        } else {
-            z = 0;
-            i++;
-            while(comando[i] != '\0' && comando[i] != ' ' && comando[i] != '$') {
-                var[z] = comando[i];
-                i++;
-                z++;
-            }
-            var[z] = '\0';
-            //printf("FOUND VAR: %s\n", var);
-            data = search_var_name(var);
-
-            if(data == NULL) {
-                printf("Error: variable not found\n");
-                return "";
-            }
-            //printf("FOUND DATA: %s\n", data);
-            for(k=0; data[k]; k++) {
-                c[j] = data[k];
-                j++;
-            }
-            i--;
-        }
-    }
-    c[j] = '\0';
-    free(var);
-    //printf("%s\n", c);
-    return c;
-}
-
-int make_var(char *copy_line) {
-    char *var = (char*)malloc(sizeof(char) * strlen(copy_line));
-    char *content = (char*)malloc(sizeof(char) * strlen(copy_line));
-    int active = 0, first = 1, var_index = 0, content_index = 0, i;
-
-    for(i=0; copy_line[i]!='\0'; i++) {
-        if(active == 1 && first == 1) var[var_index++] = copy_line[i];
-        if(active == 1 && first == 0) content[content_index++] = copy_line[i];
-        if(copy_line[i] == '\'' && active == 0) active = 1;
-        else if(copy_line[i] == '\'' && active == 1) {
-            active = 0;
-            first = 0;
-        }
-    }
-    var[var_index-1] = '\0';
-    content[content_index-1] = '\0';
-
-    if(strlen(var) == 0 || strlen(content) == 0) {
-        printcolor("! Error: format \'var\'=\'content\'\n", KRED);
-    } else {
-        elemento *insert = (elemento*)malloc(sizeof(elemento));
-        insert -> name = var;
-        insert -> data = content;
-        if (search_var_elemento(insert) == 1) {
-            printf("Warning: var \'%s\' has been overwritten\n", var);
-        } else {
-            vector_add(&vector_vars, insert);
-        }
-    }
-
-    return 0;
-}
-
-void inc_var(char *name) {
-    int i;
-    for(i=0; i<vector_total(&vector_vars); i++) {
-        elemento* tmp;
-        tmp = (elemento*)vector_get(&vector_vars, i);
-
-        if(strcmp(name, tmp->name) == 0) {
-            snprintf(tmp->data, 100, "%d", atoi(tmp -> data) + 1);
-        }
-
-    }
-}
-
-void azz_var(char *name) {
-    int i;
-    for(i=0; i<vector_total(&vector_vars); i++) {
-        elemento* tmp;
-        tmp = (elemento*)vector_get(&vector_vars, i);
-
-        if(strcmp(name, tmp->name) == 0) {
-            snprintf(tmp->data, 100, "%d", 0);
-        }
-    }
-}
-
-//***************** GESTIONE HISTORY
 
 int print_history(char *hist_arg) {
     /*
@@ -271,8 +26,6 @@ int print_history(char *hist_arg) {
     */
 
 }
-
-//***************** GESTIONE WILDCARDS
 
 char *expand_wildcar(char *s) {
     char *ns = (char* ) malloc(sizeof(char) * 1024);
@@ -413,4 +166,63 @@ char *expand_wildcar(char *s) {
     //printf("%s\n", ns);
     //printf("%s\n", ns1);
     return ns1;
+}
+
+
+/* Legge il comando e splitta
+   in corrispondenza
+   di ';' eliminando gli spazi */
+int gest_pv (char **comandi, char *comando){
+    char* c = strtok(comando,";");
+    int cont_comandi = 0;
+    while (c){
+        int inizio = 0;
+        int fine = strlen(c);
+        if (fine == 0) continue; // Comando vuoto
+        while(c[inizio] == ' ' && inizio != fine) inizio++;
+        c = c + inizio;
+        if( inizio == fine){ // Solo spazi
+	     c = strtok(NULL,";");
+         continue;
+	    }
+        inizio = 0;
+        fine = strlen(c) - 1;
+        while( c[fine - 1] == ' ' && fine != inizio) fine --;
+        if( fine != inizio) c[fine + 1] = '\0';
+
+        comandi[cont_comandi] = c;
+        c = strtok(NULL,";");
+        cont_comandi++;
+    }
+    return cont_comandi;
+}
+
+//
+int gest_and(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err) {
+    int i = 0;
+    int br = 0;
+    int length= strlen(c);
+    char tmp[length];
+
+    while (i < length && length > 0){
+        strcpy(tmp,c);
+        if (c[i] == '&' && c[i+1] == '&' && i!= length - 1) {
+            tmp[i] = '\0';
+            struct PROCESS p1 = exec_line(tmp, *(cmd_id), &subcmd_id, log_out, log_err);
+
+            if( p1.status != 0 ){
+                printcolor("! Error: One of the command failed.\n", KRED);
+                br = -1;
+                break;
+            } else {
+                (*(cmd_id))++;
+                c = c+i+2;
+                br = br+ i+2;
+                length = strlen(c);
+                i = -1 ;
+            }
+        }
+    i++;
+    }
+return br;
 }

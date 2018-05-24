@@ -23,64 +23,6 @@ void string_tolower(char s[]) {
     }
 }
 
-/* Legge il comando e splitta
-   in corrispondenza
-   di ';' eliminando gli spazi */
-int gest_pv (char **comandi, char *comando){
-    char* c = strtok(comando,";");
-    int cont_comandi = 0;
-    while (c){
-        int inizio = 0;
-        int fine = strlen(c);
-        if (fine == 0) continue; // Comando vuoto
-        while(c[inizio] == ' ' && inizio != fine) inizio++;
-        c = c + inizio;
-        if( inizio == fine){ // Solo spazi
-	     c = strtok(NULL,";");
-         continue;
-	    }
-        inizio = 0;
-        fine = strlen(c) - 1;
-        while( c[fine - 1] == ' ' && fine != inizio) fine --;
-        if( fine != inizio) c[fine + 1] = '\0';
-
-        comandi[cont_comandi] = c;
-        c = strtok(NULL,";");
-        cont_comandi++;
-    }
-    return cont_comandi;
-}
-
-//
-int gest_and(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err) {
-    int i = 0;
-    int br = 0;
-    int length= strlen(c);
-    char tmp[length];
-
-    while (i < length && length > 0){
-        strcpy(tmp,c);
-        if (c[i] == '&' && c[i+1] == '&' && i!= length - 1) {
-            tmp[i] = '\0';
-            struct PROCESS p1 = exec_line(tmp, *(cmd_id), &subcmd_id, log_out, log_err);
-
-            if( p1.status != 0 ){
-                printcolor("! Error: One of the command failed.\n", KRED);
-                br = -1;
-                break;
-            } else {
-                (*(cmd_id))++;
-                c = c+i+2;
-                br = br+ i+2;
-                length = strlen(c);
-                i = -1 ;
-            }
-        }
-    i++;
-    }
-return br;
-}
-
 
 /*
     Copia source nel file di log e nella destinazione (stdout, stdin di un altro processo, ecc.).
@@ -419,7 +361,7 @@ int redirect(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err){
         }
 
         p = exec_cmd(cmd);
- 	
+
 	if(red[0]==1){
 	   write_to(n[0], p.stdin, open("/dev/null", O_RDWR));
 	   close(p.stdin);
