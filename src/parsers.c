@@ -129,25 +129,6 @@ int list_vars() {
 
 
 /*
-int search_var_elemento(elemento* el) {
-    int i;
-    for(i=0; i<vector_total(&vector_vars); i++) {
-        elemento* tmp;
-        tmp = (elemento*)vector_get(&vector_vars, i);
-
-        if(strcmp(el->name, tmp->name) == 0) {
-            tmp -> data = el -> data;
-            return 1;
-        }
-
-    }
-
-    return 0;
-}
-*/
-
-
-/*
     Cerca una variable e ritorna il contenuto
 */
 char* search_var_name(char *name) {
@@ -260,7 +241,7 @@ void inc_var(char *name) {
 /*
     Azzera una variabile
 */
-void azz_var(char *name) {
+void clear_var(char *name) {
     int i;
     for(i = 0; i < vector_total(&vector_vars); i++) {
         elemento* tmp = (elemento*)vector_get(&vector_vars, i);

@@ -8,9 +8,11 @@
 #include "../headers/vector.h"
 #include "../headers/internals.h"
 
+/*
+    Stampa la storia dei comandi eseguiti
+*/
 
 int print_history(char *hist_arg) {
-    /*
 	HIST_ENTRY** hist = history_list();
     int n; // Quanti elementi della cronologia mostrare
 
@@ -23,18 +25,25 @@ int print_history(char *hist_arg) {
         printf("  %d\t%s\n", i + history_base, hist[i]->line);
 
     return 0;
-    */
-
 }
 
+
+/*
+    Implementa la gestione del carattere * (funziona bene solo con ls per ora)
+
+    Vengono gestiti casi come prefix*, *suffix, pre*suf
+
+    L'idea è di creare al volo un comando che preveda l'uso di grep e alcune espressioni
+    regolari di base
+*/
+
 char *expand_wildcar(char *s) {
-    char *ns = (char* ) malloc(sizeof(char) * 1024);
-    char *ns1 = (char* ) malloc(sizeof(char) * 1024);
-    char *search = (char* ) malloc(sizeof(char) * 1024);
+    char *ns = (char* ) malloc(sizeof(char) * MAXSIZE);
+    char *ns1 = (char* ) malloc(sizeof(char) * MAXSIZE);
+    char *search = (char* ) malloc(sizeof(char) * MAXSIZE);
     int tmp = 0, found = 0, letters_before = 0, letters_after = 0, i = 0, pos = 0;
 
-    for(i=0;i<1024;i++) ns[i] = '\0';
-
+    for(i=0;i<MAXSIZE;i++) ns[i] = '\0';
 
     for(i=0; s[i]; i++) {
         if(s[i] == ' ') tmp = 0;
@@ -50,25 +59,22 @@ char *expand_wildcar(char *s) {
         }
     }
 
-
-
+    //Casi non supportati
     if(found > 2) {
         ns[0] = '\0';
-        printf("ERROR\n");
+        printcolor("! Error: not supported\n", KRED);
         return ns;
     }
 
+    //Se non trovo il carattere *, restituisco il comando originale
     if(found == 0) {
         free(ns);
         return s;
     }
 
-    //printf("found: %d letters_before: %d\n", found, letters_before);
-
+    //Caso *suffix
     if(found == 1 && letters_before == 1) {
-        //int i;
         for(i=0; s[i]; i++) {
-            //printf("%c\n", s[i]);
             if(s[i] != '*') ns[i] = s[i];
             else {
                 i++;
@@ -82,14 +88,11 @@ char *expand_wildcar(char *s) {
                 break;
             }
         }
-        //printf("%s\n", ns);
-        //ns[i-1] = '\0';
-        snprintf(ns1, 1024, "%s | grep %s$", ns, search);
-        //printf("%s\n", ns1);
+        snprintf(ns1, MAXSIZE, "%s | grep %s$", ns, search);
     }
 
+    //Caso prefix*
     if(found == 1 && letters_before != 1 && letters_after == 0) {
-        //int i;
         for (i=0; s[i]; i++) {
             if(s[i] != '*') ns[i] = s[i];
             else {
@@ -107,33 +110,13 @@ char *expand_wildcar(char *s) {
                 break;
             }
         }
-        snprintf(ns1, 1024, "%s | grep ^%s", ns, search);
-        //printf("%s\n", ns);
+        snprintf(ns1, MAXSIZE, "%s | grep ^%s", ns, search);
     }
 
-    if(found == 2) {
-        //int i;
-        for(i=0; s[i]; i++) {
-            if(s[i] != '*') ns[i] = s[i];
-            else {
-                i++;
-                int pos = 0;
-                while(s[i] != ' ' && s[i] != '\0' && s[i] != '*') {
-                    search[pos] = s[i];
-                    i++;
-                    pos++;
-                }
-                search[pos] = '\0';
-                break;
-            }
-        }
-        snprintf(ns1, 1024, "%s | grep %s", ns, search);
-        //printf("%s\n", ns);
-    }
 
+    //Caso pre*suf
     if(found == 1 && letters_before != 1 && letters_after != 0) {
-        char *search1 = (char* ) malloc(sizeof(char) * 1024);
-        //int i;
+        char *search1 = (char* ) malloc(sizeof(char) * MAXSIZE);
         for(i=0; s[i]; i++) {
             if(s[i] != '*') ns[i] = s[i];
             else {
@@ -160,18 +143,37 @@ char *expand_wildcar(char *s) {
                 break;
             }
         }
-        snprintf(ns1, 1024, "%s | grep ^%s | grep %s$", ns, search, search1);
-        //printf("%s\n", ns);
+        snprintf(ns1, MAXSIZE, "%s | grep ^%s | grep %s$", ns, search, search1);
     }
-    //printf("%s\n", ns);
-    //printf("%s\n", ns1);
+
+    //Provo a gestire altri casi usando semplicemente grep
+    if(found == 2) {
+        for(i=0; s[i]; i++) {
+            if(s[i] != '*') ns[i] = s[i];
+            else {
+                i++;
+                int pos = 0;
+                while(s[i] != ' ' && s[i] != '\0' && s[i] != '*') {
+                    search[pos] = s[i];
+                    i++;
+                    pos++;
+                }
+                search[pos] = '\0';
+                break;
+            }
+        }
+        snprintf(ns1, MAXSIZE, "%s | grep %s", ns, search);
+    }
+
     return ns1;
 }
 
 
-/* Legge il comando e splitta
-   in corrispondenza
-   di ';' eliminando gli spazi */
+/* 
+    Legge il comando e splitta
+    in corrispondenza
+    di ';' eliminando gli spazi 
+*/
 int gest_pv (char **comandi, char *comando){
     char* c = strtok(comando,";");
     int cont_comandi = 0;
@@ -197,7 +199,9 @@ int gest_pv (char **comandi, char *comando){
     return cont_comandi;
 }
 
-//
+/*
+    Implementa gestione dei comandi del tipo "cmd1 && cmd2 && cmd3"
+*/
 int gest_and(char* c, int* cmd_id, int subcmd_id, int log_out, int log_err) {
     int i = 0;
     int br = 0;

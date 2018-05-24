@@ -1,6 +1,8 @@
 #ifndef INTERNALS_H
 #define INTERNALS_H
 
+#define MAXSIZE 1024
+
 int print_history(char *hist_arg);
 char *expand_wildcar(char *s);
 

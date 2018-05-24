@@ -1,3 +1,8 @@
+/*
+    Implementazione di un array dinamico, viene usato per gestire variabili e alias
+    Raggiunta la capacità massima, viene raddoppiata in modo da contenere altri elementi
+*/
+
 #ifndef VECTOR_H
 #define VECTOR_H
 
