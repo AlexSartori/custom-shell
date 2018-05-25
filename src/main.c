@@ -19,12 +19,12 @@
 
 char *comando, prompt[BUF_SIZE];                        // Buffer per l'input dell'utente e il prompt
 struct OPTIONS opt;                                     // Opzioni con cui è stata chiamata la shell
-
+int running;
 
 
 void shell_exit(int status) {
     printf("\n");
-    //free(comando);                                      // Libera i buffer allocati
+    // free(comando);                                      // Libera i buffer allocati
 
     close(log_out);                                     // Chiudi i file di log
     close(log_err);
@@ -33,6 +33,7 @@ void shell_exit(int status) {
 
 
 void init_shell(struct OPTIONS opt, int argc, char** argv) {
+    running = 1;                                        // Attiva il loop principale
     opt = read_options(argc, argv);                     // Leggi gli argomenti di chiamata
     child_cmd_pid = 0;                                  // Pid del comando figlio
     save_ret_code = opt.save_ret_code;                  // Se salvare il codice di ritorno
@@ -82,16 +83,16 @@ void sigHandler(int sig) {
 int main(int argc, char** argv) {
     init_shell(opt, argc, argv);
 
-    while (1) {
+    while (running) {
         child_cmd_pid = 0;                              // Nessun figlio in esecuzione
         get_prompt(prompt);                             // Crea il prompt
-        free(comando);                                  // Libera la memoria del loop precedente
         comando = readline(prompt);                     // Leggi l'input dell'utente
 
         if (run_timeout != -1) alarm(run_timeout);      // Timeout di esecuzione figli
 
-        if (comando == NULL) break;                     // Ctrl-D
-        if (strlen(comando) == 0) continue;             // Linea vuota
+        if (comando == NULL) { free(comando); break; }  // Ctrl-D
+        if (strlen(comando) == 0)                       // Linea vuota
+        { free(comando); continue; }
 
         add_history(comando);                           // Gestisci history
 
@@ -116,6 +117,9 @@ int main(int argc, char** argv) {
                  comandi_pv[j] = comandi_pv[j] + br;
             }
 
+            // Se è il comando exit esci dal loop
+            if (strcmp(comandi_pv[j], "exit") == 0) { running = 0; break; }
+
             int t = strlen(comandi_pv[j]) - 1;
             if (comandi_pv[j][t] == '&') {
                 comandi_pv[j][t] = '\0';
@@ -135,6 +139,9 @@ int main(int argc, char** argv) {
                 else if (p.status != 0) { printcolor("Non-zero exit status: ", KMAG); printf("%d\n", p.status); }
             }
         }
+
+        free(comando);
+        free(comandi_pv);
 
         // Controllo dimensione dei file
         struct stat buffer;

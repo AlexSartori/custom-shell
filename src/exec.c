@@ -101,18 +101,20 @@ struct PROCESS exec_line(char* line) {
     TODO magari espandendo variabili e percorsi
 */
 struct PROCESS exec_cmd(char* l) {
-    char* line = (char*)malloc(sizeof(char)*strlen(l));
-    char* line_copy = (char*)malloc(sizeof(char)*strlen(l));
-    strcpy(line, l);
-    strcpy(line_copy, l);
+    // Sostituisci variabili (se non è un for, altrimenti se ne occupa lui)
+    char* line;
+    if (l[0] != 'f' && l[1] != 'o' && l[2] != 'r')
+        line = parse_vars(l);
+    else
+        { line = malloc(sizeof(char)*(strlen(l)+1)); strcpy(line, l); }
 
-    struct PROCESS dummy; // = fork_cmd((char*[]) {";", NULL});
+    char* line_copy = malloc(sizeof(char)*(strlen(line)+1));
+    strcpy(line_copy, line);
+
+    struct PROCESS dummy;
     dummy.stdout = dummy.stderr = dummy.stdin = open("/dev/null", O_RDWR);
     // printf("----    exec_cmd: %s\n", line);
 
-    // Sostituisci variabili (se non è un for)
-    if (line[0] != 'f' && line[1] != 'o' && line[2] != 'r')
-        line = parse_vars(line);
 
     // Separo comando e argomenti
     int spazi = 0, i = 0, c;
@@ -135,32 +137,34 @@ struct PROCESS exec_cmd(char* l) {
     else if (strcmp(args[0], "exit") == 0)
         shell_exit(0);
     else if (strcmp(args[0], "help") == 0)
-        return exec_internal(print_help, args[1]);
+        dummy = exec_internal(print_help, args[1]);
     else if (strcmp(args[0], "alias") == 0) {
         char *tmp = args[1];
         if(tmp == NULL) {
-            return exec_internal(list_alias, NULL);
+            dummy = exec_internal(list_alias, NULL);
         } else {
             dummy.status = make_alias(line_copy);
         }
     } else if (strcmp(args[0], "var") == 0) {
         char *tmp = args[1];
         if(tmp == NULL) {
-            return exec_internal(list_vars, NULL);
+            dummy = exec_internal(list_vars, NULL);
         } else {
             dummy.status = make_var(line_copy);
         }
     } else if (strcmp(args[0], "cd") == 0) {
         dummy.status = chdir(args[1]);
     } else if (strcmp(args[0], "history") == 0) {
-        return exec_internal(print_history, args[1]);
+        dummy = exec_internal(print_history, args[1]);
     } else if (strcmp(args[0], "for") == 0) {
         dummy.status = do_for(args);
     } else {
         // È un comando shell
+        free(line_copy);
         return fork_cmd(args);
     }
 
+    free(line);
     return dummy;
 }
 
@@ -252,6 +256,7 @@ struct PROCESS fork_cmd(char** args) {
         dup2(child_err[PIPE_WRITE], 2);
 
         int ret_code = execvp(args[0], args);
+        free(args);
         // if (ret_code < 0) perror("Cannot execute command");
 
         // Chiudi i pipe

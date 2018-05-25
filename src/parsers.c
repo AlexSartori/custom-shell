@@ -23,9 +23,10 @@ void vectors_initializer() {
 */
 char* parse_alias(char* comando) {
     // printf("---   Parse alias: '%s'\n", comando);
-    char *init = (char*)malloc(sizeof(char)*(strlen(comando)));
+    char *init = malloc(sizeof(char)*(strlen(comando) + 1));
     strcpy(init, comando);
-    char *token = strtok(comando, " "), *ns;
+    char *token = strtok(comando, " "),
+         *ns = malloc(sizeof(char)*(strlen(comando)+BUF_SIZE)); // BUF_SIZE spazio per l'alias
 
     int ok = 0, i;
     for(i = 0; i < vector_total(&vector_alias); i++) {
@@ -33,7 +34,6 @@ char* parse_alias(char* comando) {
 
         if(strcmp(token, tmp->name) == 0) {
             ok = 1;
-            ns = (char*)malloc(sizeof(char)*(strlen(comando) + strlen(tmp->data)));
             strcpy(ns, tmp->data);
             token = strtok(NULL, " ");
             while(token) {
@@ -47,8 +47,15 @@ char* parse_alias(char* comando) {
 
     }
 
-    if(ok == 0) return init;
-    else return ns;
+    if(ok == 0) {
+        free(comando);
+        free(ns);
+        return init;
+    } else {
+        free(init);
+        free(comando);
+        return ns;
+    }
 }
 
 
@@ -84,8 +91,8 @@ int search_alias(elemento* el) {
     Crea un alias
 */
 int make_alias(char *copy_line) {
-	char *alias = (char*)malloc(sizeof(char) * strlen(copy_line));
-    char *content = (char*)malloc(sizeof(char) * strlen(copy_line));
+	char *alias = malloc(sizeof(char) * (strlen(copy_line)+1));
+    char *content = malloc(sizeof(char) * (strlen(copy_line)+1));
     int active = 0, first = 1, alias_index = 0, content_index = 0, i;
 
     // Metti in alias e content il nome dell'alias e la stringa corrispettiva.
@@ -111,6 +118,7 @@ int make_alias(char *copy_line) {
         else vector_add(&vector_alias, insert);
     }
 
+    free(copy_line);
     return 0;
 }
 
@@ -149,13 +157,13 @@ char* search_var_name(char *name) {
     Sostituisce le variabili presenti in comando e restituisce una nuova stringa
 */
 char* parse_vars(char *comando) {
-    char *c = (char*)malloc(sizeof(char) * strlen(comando)*2);
-    char *var = (char*)malloc(sizeof(char) * strlen(comando));
+    char *c = malloc(sizeof(char) * (strlen(comando)+BUF_SIZE)); // BUF_SIZE spazio per le var
+    char *var = malloc(sizeof(char) * BUF_SIZE);
     int j = 0, i = 0, z = 0, k = 0;
     char* data;
 
-    for(i = 0; comando[i]; i++) {
-        if(comando[i] != '$') {
+    for (i = 0; comando[i]; i++) {
+        if (comando[i] != '$') {
             c[j] = comando[i];
             j++;
         } else {
@@ -167,17 +175,19 @@ char* parse_vars(char *comando) {
                 z++;
             }
             var[z] = '\0';
-            //printf("FOUND VAR: %s\n", var);
+            // printf("FOUND VAR: %s\n", var);
             data = search_var_name(var);
+
             // Cerca anche nelle variabili globali
             if (data == NULL) data = getenv(var);
 
             if(data == NULL) {
-                printcolor("! Error: variable not found\n", KRED);
-                return "";
+                // Nesuna trovata, ritorno il comando originale così da l'errore
+                // printcolor("! Error: variable not found\n", KRED);
+                break;
             }
             //printf("FOUND DATA: %s\n", data);
-            for(k = 0; data[k]; k++) {
+            for (k = 0; data[k]; k++) {
                 c[j] = data[k];
                 j++;
             }
@@ -186,7 +196,8 @@ char* parse_vars(char *comando) {
     }
     c[j] = '\0';
     free(var);
-    //printf("%s\n", c);
+    // free(comando);
+    // printf("%s\n", c);
     return c;
 }
 
@@ -195,8 +206,8 @@ char* parse_vars(char *comando) {
     Crea una nuova coppia nome_variabile -> valore
 */
 int make_var(char *copy_line) {
-    char *var = (char*)malloc(sizeof(char) * strlen(copy_line));
-    char *content = (char*)malloc(sizeof(char) * strlen(copy_line));
+    char *var = malloc(sizeof(char) * (strlen(copy_line)+1));
+    char *content = malloc(sizeof(char) * (strlen(copy_line)+1));
     int active = 0, first = 1, var_index = 0, content_index = 0, i;
 
     for(i = 0; copy_line[i] != '\0'; i++) {
@@ -224,6 +235,7 @@ int make_var(char *copy_line) {
         }
     }
 
+    free(copy_line);
     return 0;
 }
 

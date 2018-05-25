@@ -31,7 +31,6 @@ int do_for(char** args) {
 		char *make = (char*) malloc(sizeof(char) * BUF_SIZE);
 		snprintf(make, BUF_SIZE, "var \'%s\' = \'%d'\"", var, 0);
 		make_var(make);
-		free(make);
 	}
 
 	if(args[2] != NULL && strcmp(args[2], "in") == 0) b = 1;
@@ -98,14 +97,9 @@ int print_history(char *hist_arg) {
 */
 
 char *expand_wildcard(char *s) {
-    char *ns = (char* ) malloc(sizeof(char) * MAXSIZE);
-    char *ns1 = (char* ) malloc(sizeof(char) * MAXSIZE);
-    char *search = (char* ) malloc(sizeof(char) * MAXSIZE);
     int tmp = 0, found = 0, letters_before = 0, letters_after = 0, i = 0, pos = 0;
 
-    for(i=0;i<MAXSIZE;i++) ns[i] = '\0';
-
-    for(i=0; s[i]; i++) {
+    for(i = 0; s[i]; i++) {
         if(s[i] == ' ') tmp = 0;
         else tmp++;
 
@@ -119,22 +113,25 @@ char *expand_wildcard(char *s) {
         }
     }
 
-    //Casi non supportati
+    // Casi non supportati
     if(found > 2) {
-        ns[0] = '\0';
-        printcolor("! Error: not supported\n", KRED);
-        return ns;
+        printcolor("! Error: wildcard not supported\n", KRED);
+        return '\0';
     }
 
-    //Se non trovo il carattere *, restituisco il comando originale
+    // Se non trovo il carattere *, restituisco il comando originale
     if(found == 0) {
-        free(ns);
         return s;
     }
 
+	char *ns = (char* ) malloc(sizeof(char) * MAXSIZE);
+	char *ns1 = (char* ) malloc(sizeof(char) * MAXSIZE);
+	char *search = (char* ) malloc(sizeof(char) * MAXSIZE);
+	for(i = 0;i < MAXSIZE; i++) ns[i] = '\0';
+
     //Caso *suffix
     if(found == 1 && letters_before == 1) {
-        for(i=0; s[i]; i++) {
+        for(i = 0; s[i]; i++) {
             if(s[i] != '*') ns[i] = s[i];
             else {
                 i++;
@@ -208,12 +205,12 @@ char *expand_wildcard(char *s) {
 
     //Provo a gestire altri casi usando semplicemente grep
     if(found == 2) {
-        for(i=0; s[i]; i++) {
+        for(i = 0; s[i]; i++) {
             if(s[i] != '*') ns[i] = s[i];
             else {
                 i++;
                 int pos = 0;
-                while(s[i] != ' ' && s[i] != '\0' && s[i] != '*') {
+                while (s[i] != ' ' && s[i] != '\0' && s[i] != '*') {
                     search[pos] = s[i];
                     i++;
                     pos++;
@@ -225,6 +222,8 @@ char *expand_wildcard(char *s) {
         snprintf(ns1, MAXSIZE, "%s | grep %s", ns, search);
     }
 
+	free(search);
+	free(ns);
     return ns1;
 }
 
@@ -236,7 +235,7 @@ char *expand_wildcard(char *s) {
 */
 char** gest_pv (char *comando) {
 	int pv = 0, i; for(i = 0; comando[i]; i++) if (comando[i] == ';') pv++;
-	char** comandi = (char**)malloc(sizeof(char*)*pv+1); // Ultimo elemento NULL
+	char** comandi = malloc(sizeof(char*)*(pv+2)); // Ultimo elemento NULL
 
 	int cont_comandi = 0;
     char* c = strtok(comando, ";");
@@ -307,6 +306,7 @@ int redirect(char* c, struct PROCESS *ret_p) {
     int len = strlen(c);
     char new_error[len], new_input[len], new_output[len], cmd[len];
     int cmd_saved = 0, i = 0;
+	red[0] = red[1] = red[2] = 0; // Di default non reindirizzare nessun canale
 
     while (i < len) {
         if (c[i] == '>' || c[i] == '<') { // Output, error o input
