@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../headers/vector.h"
-#include "../headers/utils.h"
+#include "vector.h"
+#include "utils.h"
 
 
 #define DIM 128
@@ -125,7 +125,7 @@ int make_alias(char *copy_line) {
         elemento *insert = (elemento*)malloc(sizeof(elemento));
         insert -> name = alias;
         insert -> data = content;
-        if (search_alias(insert) != -1) printcolor("! Error: this alias already exists.", KRED);
+        if (search_alias(insert) != -1) printcolor("! Error: this alias already exists.\n", KRED);
         else vector_add(&vector_alias, insert);
     }
     free(copy_line);

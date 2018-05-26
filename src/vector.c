@@ -5,7 +5,7 @@
 
 #include <stdlib.h>
 
-#include "../headers/vector.h"
+#include "vector.h"
 
 void vector_init(vector *v)
 {

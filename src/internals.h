@@ -7,7 +7,7 @@
 
 #define MAXSIZE 1024
 
-#include "../headers/exec.h"
+#include "exec.h"
 
 int print_history(char *hist_arg);
 char *expand_wildcard(char *s);

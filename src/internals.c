@@ -6,10 +6,10 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 
-#include "../headers/utils.h"
-#include "../headers/vector.h"
-#include "../headers/parsers.h"
-#include "../headers/internals.h"
+#include "utils.h"
+#include "vector.h"
+#include "parsers.h"
+#include "internals.h"
 
 
 /*
@@ -119,9 +119,9 @@ char *expand_wildcard(char *s) {
 
     //Casi non supportati
     if(found > 2) {
-        ns[0] = '\0';
+        // ns[0] = '\0';
         printcolor("! Error: not supported\n", KRED);
-        return ns;
+        return s;
     }
 
     //Se non trovo il carattere *, restituisco il comando originale

@@ -10,11 +10,11 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "../headers/exec.h"
-#include "../headers/utils.h"
-#include "../headers/vector.h"
-#include "../headers/internals.h"
-#include "../headers/parsers.h"
+#include "exec.h"
+#include "utils.h"
+#include "vector.h"
+#include "internals.h"
+#include "parsers.h"
 
 
 char *comando, prompt[BUF_SIZE];                        // Buffer per l'input dell'utente e il prompt

@@ -11,7 +11,7 @@
 #include <time.h>
 #include <sys/wait.h>
 
-#include "../headers/utils.h"
+#include "utils.h"
 
 /*
     Converte una stringa in lowercase
@@ -143,7 +143,7 @@ struct OPTIONS read_options(int argc, char** argv) {
     ret.timeout = -1;
 
     char c;
-    int indexptr;
+    int indexptr, out_scelto = 0, err_scelto = 0;
     opterr = 0; // Non stampare messaggi
 
     while ((c = getopt_long(argc, argv, ":o:e:m:u:t:rh", long_opts, &indexptr)) != -1) {
@@ -155,10 +155,12 @@ struct OPTIONS read_options(int argc, char** argv) {
             case 'o':
                 printf("  Outfile:\t%s\n", optarg);
                 strcpy(ret.log_out_path, optarg);
+                out_scelto = 1;
                 break;
             case 'e':
                 printf("  Errfile:\t%s\n", optarg);
                 strcpy(ret.log_err_path, optarg);
+                err_scelto = 1;
                 break;
             case 'm':
                 printf("  Max Size:\t%s [bytes]\n", optarg);
@@ -193,6 +195,11 @@ struct OPTIONS read_options(int argc, char** argv) {
     int i;
     for (i = optind; i < argc; i++)
         fprintf(stderr, "Unrecognized argument: %s\n", argv[i]);
+
+    if (out_scelto == 0)
+        printf("  Stdout log file not specified, using default: %s\n", ret.log_out_path);
+    if (err_scelto == 0)
+        printf("  Stderr log file not specified, using default: %s\n", ret.log_err_path);
 
     return ret;
 }

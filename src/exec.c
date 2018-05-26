@@ -6,11 +6,11 @@
 #include <sys/wait.h>
 #include <readline/history.h>
 
-#include "../headers/internals.h"
-#include "../headers/utils.h"
-#include "../headers/exec.h"
-#include "../headers/vector.h"
-#include "../headers/parsers.h"
+#include "internals.h"
+#include "utils.h"
+#include "exec.h"
+#include "vector.h"
+#include "parsers.h"
 
 /*
     Funzionamento:
@@ -118,6 +118,7 @@ struct PROCESS exec_cmd(char* l) {
     int spazi = 0, i = 0, c;
     for (c = 0; line[c] != '\0'; c++) if (line[c] == ' ') spazi++;
     char* args[spazi+1]; // L'ultimo elemento dev'essere NULL
+
     char* token = strtok(line, " ");
     while (token) {
         args[i] = token;
@@ -266,7 +267,7 @@ struct PROCESS fork_cmd(char** args) {
         close(child_in[PIPE_READ]);
         close(child_out[PIPE_WRITE]);
         close(child_err[PIPE_WRITE]);
-        
+
         struct PROCESS p;
         p.stdin  = child_in[PIPE_WRITE];
         p.stdout = child_out[PIPE_READ];

@@ -19,7 +19,7 @@
 #define min(a, b) (a > b ? b : a)
 #define max(a, b) (a > b ? a : b)
 
-#include "../headers/exec.h"
+#include "exec.h"
 
 struct OPTIONS {
     char log_out_path[BUF_SIZE], log_err_path[BUF_SIZE];
