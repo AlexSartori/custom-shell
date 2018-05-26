@@ -56,9 +56,9 @@ int do_for(char** args) {
 		for(start = 0; start < lim; start++) {
 			// Gestisco variabili
 			cmd_parsed = parse_vars(cmd);
-			exec_line(cmd_parsed);
-			wait(&ret);
-			inc_var(var);
+            ret = exec_line(cmd_parsed).status;
+            wait(&ret);
+            inc_var(var);
 		}
 		return ret;
 	} else {
@@ -67,10 +67,10 @@ int do_for(char** args) {
 	}
 }
 
+
 /*
     Stampa la storia dei comandi eseguiti
 */
-
 int print_history(char *hist_arg) {
 	HIST_ENTRY** hist = history_list();
     int n; // Quanti elementi della cronologia mostrare
@@ -95,11 +95,15 @@ int print_history(char *hist_arg) {
     L'idea è di creare al volo un comando che preveda l'uso di grep e alcune espressioni
     regolari di base
 */
-
 char *expand_wildcard(char *s) {
+    char *ns = (char* ) malloc(sizeof(char) * MAXSIZE);
+    char *ns1 = (char* ) malloc(sizeof(char) * MAXSIZE);
+    char *search = (char* ) malloc(sizeof(char) * MAXSIZE);
     int tmp = 0, found = 0, letters_before = 0, letters_after = 0, i = 0, pos = 0;
 
-    for(i = 0; s[i]; i++) {
+    for(i=0;i<MAXSIZE;i++) ns[i] = '\0';
+
+    for(i=0; s[i]; i++) {
         if(s[i] == ' ') tmp = 0;
         else tmp++;
 
@@ -113,25 +117,22 @@ char *expand_wildcard(char *s) {
         }
     }
 
-    // Casi non supportati
+    //Casi non supportati
     if(found > 2) {
-        printcolor("! Error: wildcard not supported\n", KRED);
-        return '\0';
+        ns[0] = '\0';
+        printcolor("! Error: not supported\n", KRED);
+        return ns;
     }
 
-    // Se non trovo il carattere *, restituisco il comando originale
+    //Se non trovo il carattere *, restituisco il comando originale
     if(found == 0) {
+        free(ns);
         return s;
     }
 
-	char *ns = (char* ) malloc(sizeof(char) * MAXSIZE);
-	char *ns1 = (char* ) malloc(sizeof(char) * MAXSIZE);
-	char *search = (char* ) malloc(sizeof(char) * MAXSIZE);
-	for(i = 0;i < MAXSIZE; i++) ns[i] = '\0';
-
     //Caso *suffix
     if(found == 1 && letters_before == 1) {
-        for(i = 0; s[i]; i++) {
+        for(i=0; s[i]; i++) {
             if(s[i] != '*') ns[i] = s[i];
             else {
                 i++;
@@ -205,12 +206,12 @@ char *expand_wildcard(char *s) {
 
     //Provo a gestire altri casi usando semplicemente grep
     if(found == 2) {
-        for(i = 0; s[i]; i++) {
+        for(i=0; s[i]; i++) {
             if(s[i] != '*') ns[i] = s[i];
             else {
                 i++;
                 int pos = 0;
-                while (s[i] != ' ' && s[i] != '\0' && s[i] != '*') {
+                while(s[i] != ' ' && s[i] != '\0' && s[i] != '*') {
                     search[pos] = s[i];
                     i++;
                     pos++;
@@ -222,24 +223,22 @@ char *expand_wildcard(char *s) {
         snprintf(ns1, MAXSIZE, "%s | grep %s", ns, search);
     }
 
-	free(search);
-	free(ns);
     return ns1;
 }
 
 
 /*
-    Legge il comando e splitta
-    in corrispondenza
-    di ';' eliminando gli spazi
+    Legge il comando e splitta in corrispondenza di ';' eliminando gli spazi.
 */
-char** gest_pv (char *comando) {
+char** split_pv (char *comando) {
+	// Conta i punti e virgola e alloca un array per contenere i comandi splittati
 	int pv = 0, i; for(i = 0; comando[i]; i++) if (comando[i] == ';') pv++;
 	char** comandi = malloc(sizeof(char*)*(pv+2)); // Ultimo elemento NULL
 
 	int cont_comandi = 0;
     char* c = strtok(comando, ";");
 
+	// Per ogni token, rimuovi gli spazi e se non è vuoto aggiungilo all'array
     while (c) {
         int inizio = 0, fine = strlen(c);
         if (fine == 0) continue; // Comando vuoto
@@ -266,13 +265,15 @@ char** gest_pv (char *comando) {
     return comandi;
 }
 
+
 /*
-    Implementa gestione dei comandi del tipo "cmd1 && cmd2 && cmd3"
+    Implementa gestione dei comandi del tipo "cmd1 && cmd2 && cmd3".
 */
 int gest_and(char* c) {
     int i = 0, br = 0, length = strlen(c);
     char tmp[length];
 
+	// Se trovo && eseguo fino a lì e ripeto. Se un comando fallisce ritorno un errore.
     while (i < length && length > 0) {
 		strcpy(tmp, c);
         if (i != length - 1 && c[i] == '&' && c[i+1] == '&') {
@@ -280,9 +281,11 @@ int gest_and(char* c) {
             struct PROCESS p1 = exec_line(tmp);
 
             if (p1.status != 0 ) {
+				// Comando fallito
                 br = -1;
                 break;
             } else {
+				// Prossimo comando
                 cmd_id++;
                 c = c+i+2;
                 br = br+i+2;
@@ -297,7 +300,7 @@ int gest_and(char* c) {
 
 
 /*
-	Controlla glioperatori <, >, 2>, &>, >>
+	Controlla gli operatori <, >, 2>, &>, >>.
 */
 int redirect(char* c, struct PROCESS *ret_p) {
     int flag = 0; // Se ci sono > o < l'esecuzione è gestita nella funzione, non nel main
@@ -310,6 +313,7 @@ int redirect(char* c, struct PROCESS *ret_p) {
 
     while (i < len) {
         if (c[i] == '>' || c[i] == '<') { // Output, error o input
+			// Cerca il nome del file.
             int file_start = i + 1;
             if (c[file_start] == '>'){ // Append
                 file_start++;
@@ -318,6 +322,7 @@ int redirect(char* c, struct PROCESS *ret_p) {
                 permissions |= O_CREAT | O_TRUNC;
             }
 
+			// Rimuovi gli spazi
             while (c[file_start] == ' ') file_start++;
             int file_end = file_start;
             while(c[file_end] != ' ' && c[file_end] != '\0') file_end++;
@@ -326,6 +331,7 @@ int redirect(char* c, struct PROCESS *ret_p) {
             strcat(new_file, c + file_start);
             new_file[file_end + 2 - file_start] = '\0';
 
+			// Apri il file e salva quali canali redirezionare
             if (c[i] == '<') { // Input
 				red[0] = 1;
 				strcpy(new_input, new_file);
@@ -338,7 +344,6 @@ int redirect(char* c, struct PROCESS *ret_p) {
                 n[2] = open(new_error, permissions, 0644);
             } else { // Output
                 strcpy(new_output, new_file);
-                //printf("new_output: %s\n",new_output);
                 red[1] = 1;
                 n[1] = open(new_output, permissions, 0644);
             }
@@ -357,14 +362,7 @@ int redirect(char* c, struct PROCESS *ret_p) {
     }
 
     if (flag) {
-        // int i;
-        // for (i = 1; i < 3; i++) {
-        //     if (red[i] == 1) {
-        //         dup2(n[i], i);
-        //         close(n[i]);
-        //     }
-        // }
-
+		// Esegui il processo e gestisci i canali redirezionati
         struct PROCESS p = exec_cmd(cmd);
 		ret_p->stdout = p.stdout;
 		ret_p->stderr = p.stderr;
@@ -383,13 +381,6 @@ int redirect(char* c, struct PROCESS *ret_p) {
 		   close(p.stdin);
 		}
 		wait(&(ret_p->status));
-
-        // for(i = 1; i < 3; i++){
-        //     if (red[i] == 1) {
-        //         dup2(s[i], i);
-        //         close(s[i]);
-        //     }
-        // }
     }
 	return flag;
 }

@@ -17,6 +17,7 @@
     Converte una stringa in lowercase
 */
 void string_tolower(char s[]) {
+    if (strlen(s) <= 0) return;
     int i;
     for (i = 0; s[i]; i++){
         s[i] = tolower(s[i]);
@@ -148,8 +149,8 @@ struct OPTIONS read_options(int argc, char** argv) {
     while ((c = getopt_long(argc, argv, ":o:e:m:u:t:rh", long_opts, &indexptr)) != -1) {
         switch (c) {
             case 'h':
-                print_help();
-                shell_exit(0);
+                print_help(NULL);
+                exit(0);
                 break;
             case 'o':
                 printf("  Outfile:\t%s\n", optarg);

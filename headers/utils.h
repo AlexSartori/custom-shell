@@ -1,3 +1,7 @@
+/*
+    Funzioni di utilità generale
+*/
+
 #ifndef UTILS_H
 #define UTILS_H
 

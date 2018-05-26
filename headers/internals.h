@@ -1,3 +1,7 @@
+/*
+    Comandi interni
+*/
+
 #ifndef INTERNALS_H
 #define INTERNALS_H
 
@@ -10,7 +14,7 @@ char *expand_wildcard(char *s);
 
 
 // Parsing della linea di comando
-char** gest_pv (char *comando);
+char** split_pv (char *comando);
 int gest_and(char* c);
 int redirect(char* c, struct PROCESS *ret_p);
 int do_for(char** args);

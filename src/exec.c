@@ -101,20 +101,18 @@ struct PROCESS exec_line(char* line) {
     TODO magari espandendo variabili e percorsi
 */
 struct PROCESS exec_cmd(char* l) {
-    // Sostituisci variabili (se non è un for, altrimenti se ne occupa lui)
-    char* line;
-    if (l[0] != 'f' && l[1] != 'o' && l[2] != 'r')
-        line = parse_vars(l);
-    else
-        { line = malloc(sizeof(char)*(strlen(l)+1)); strcpy(line, l); }
+    char* line = malloc(sizeof(char)*(strlen(l)+1));
+    char* line_copy = malloc(sizeof(char)*(strlen(l)+1));
+    strcpy(line, l);
+    strcpy(line_copy, l);
 
-    char* line_copy = malloc(sizeof(char)*(strlen(line)+1));
-    strcpy(line_copy, line);
-
-    struct PROCESS dummy;
+    struct PROCESS dummy; // = fork_cmd((char*[]) {";", NULL});
     dummy.stdout = dummy.stderr = dummy.stdin = open("/dev/null", O_RDWR);
     // printf("----    exec_cmd: %s\n", line);
 
+    // Sostituisci variabili (se non è un for)
+    if (line[0] != 'f' && line[1] != 'o' && line[2] != 'r')
+        line = parse_vars(line);
 
     // Separo comando e argomenti
     int spazi = 0, i = 0, c;
@@ -131,31 +129,38 @@ struct PROCESS exec_cmd(char* l) {
     // Case insensitive
     string_tolower(args[0]);
 
+    char* blacklist[] = {"nano", "vim", NULL};
+    for (i = 0; blacklist[i]; i++)
+        if (strcmp(args[0], blacklist[i]) == 0) {
+            printcolor("! Error: command not supported.\n", KRED);
+            return dummy;
+        }
+
     // Controllo se è un comando che voglio gestire internamente
     if (strcmp(args[0], "clear") == 0)
         dummy.status = clear();
     else if (strcmp(args[0], "exit") == 0)
         shell_exit(0);
     else if (strcmp(args[0], "help") == 0)
-        dummy = exec_internal(print_help, args[1]);
+        return exec_internal(print_help, args[1]);
     else if (strcmp(args[0], "alias") == 0) {
         char *tmp = args[1];
         if(tmp == NULL) {
-            dummy = exec_internal(list_alias, NULL);
+            return exec_internal(list_alias, NULL);
         } else {
             dummy.status = make_alias(line_copy);
         }
     } else if (strcmp(args[0], "var") == 0) {
         char *tmp = args[1];
         if(tmp == NULL) {
-            dummy = exec_internal(list_vars, NULL);
+            return exec_internal(list_vars, NULL);
         } else {
             dummy.status = make_var(line_copy);
         }
     } else if (strcmp(args[0], "cd") == 0) {
         dummy.status = chdir(args[1]);
     } else if (strcmp(args[0], "history") == 0) {
-        dummy = exec_internal(print_history, args[1]);
+        return exec_internal(print_history, args[1]);
     } else if (strcmp(args[0], "for") == 0) {
         dummy.status = do_for(args);
     } else {
@@ -185,10 +190,6 @@ struct PROCESS exec_internal(int (*f)(char*), char* arg) {
     if ((pid = fork())  < 0) perror("Cannot create child");
 
     if (pid == 0) { // Child
-        // signal(SIGINT, signal_child);
-        // signal(SIGALRM, signal_child);
-        // alarm(run_timeout);
-
         // Chiudi pipe-end che non servono
         close(child_in[PIPE_WRITE]);
         close(child_out[PIPE_READ]);
@@ -241,10 +242,6 @@ struct PROCESS fork_cmd(char** args) {
     if ((pid = fork())  < 0) perror("Cannot create child");
 
     if (pid == 0) { // Child
-        // signal(SIGINT, signal_child);
-        // signal(SIGALRM, signal_child);
-        // alarm(run_timeout);
-
         // Chiudi pipe-end che non servono
         close(child_in[PIPE_WRITE]);
         close(child_out[PIPE_READ]);
@@ -256,8 +253,6 @@ struct PROCESS fork_cmd(char** args) {
         dup2(child_err[PIPE_WRITE], 2);
 
         int ret_code = execvp(args[0], args);
-        free(args);
-        // if (ret_code < 0) perror("Cannot execute command");
 
         // Chiudi i pipe
         close(child_in[PIPE_READ]);
@@ -271,10 +266,7 @@ struct PROCESS fork_cmd(char** args) {
         close(child_in[PIPE_READ]);
         close(child_out[PIPE_WRITE]);
         close(child_err[PIPE_WRITE]);
-
-        //if(WIFEXITED(status) && WEXITSTATUS(status) != 0) printcolor("! Comando non esistente\n",KRED);
-        // wait(NULL);
-
+        
         struct PROCESS p;
         p.stdin  = child_in[PIPE_WRITE];
         p.stdout = child_out[PIPE_READ];

@@ -22,17 +22,18 @@ struct OPTIONS opt;                                     // Opzioni con cui è st
 int running;
 
 
+
 void shell_exit(int status) {
     printf("\n");
-    // free(comando);                                      // Libera i buffer allocati
 
     close(log_out);                                     // Chiudi i file di log
     close(log_err);
+    vectors_destroy();
     exit(status);
 }
 
 
-void init_shell(struct OPTIONS opt, int argc, char** argv) {
+void init_shell(int argc, char** argv) {
     running = 1;                                        // Attiva il loop principale
     opt = read_options(argc, argv);                     // Leggi gli argomenti di chiamata
     child_cmd_pid = 0;                                  // Pid del comando figlio
@@ -49,14 +50,14 @@ void init_shell(struct OPTIONS opt, int argc, char** argv) {
     log_out = open(opt.log_out_path,                    // File di log stdout
                    O_RDWR | O_CREAT | O_APPEND, 0644);
     if (log_out == -1) {
-        printcolor("Cannot open stdout log, quitting.", KRED);
+        printcolor("! Error: cannot open stdout log, quitting.", KRED);
         shell_exit(-1);
     }
 
     log_err = open(opt.log_err_path,                    // File di log stderr
                    O_RDWR | O_CREAT | O_APPEND, 0644);
     if (log_err == -1) {
-        printcolor("Cannot open stderr log, quitting.", KRED);
+        printcolor("! Error: cannot open stderr log, quitting.", KRED);
         shell_exit(-1);
     }
 
@@ -81,7 +82,7 @@ void sigHandler(int sig) {
 
 
 int main(int argc, char** argv) {
-    init_shell(opt, argc, argv);
+    init_shell(argc, argv);
 
     while (running) {
         child_cmd_pid = 0;                              // Nessun figlio in esecuzione
@@ -90,23 +91,22 @@ int main(int argc, char** argv) {
 
         if (run_timeout != -1) alarm(run_timeout);      // Timeout di esecuzione figli
 
-        if (comando == NULL) { free(comando); break; }  // Ctrl-D
+        if (comando == NULL) break;                     // Ctrl-D
+
         if (strlen(comando) == 0)                       // Linea vuota
         { free(comando); continue; }
 
-        add_history(comando);                           // Gestisci history
 
-        comando = parse_alias(comando);                 // Gestisci alias
-        comando = expand_wildcard(comando);             // Gestisci wildcards
+        add_history(comando);                           // Gestisci history
 
 
         // Gestisco punto e virgola
-        char** comandi_pv = gest_pv(comando);
+        char** comandi_pv = split_pv(comando);
 
         int j;
         for (j = 0; comandi_pv[j] != NULL; j++) {
-            // printf("\t--- comandi_pv[%d] = '%s'\n", j, comandi_pv[j]);
             cmd_id++; subcmd_id = 0;
+            if (strcmp(comandi_pv[j], "exit") == 0) { running = 0; break; }
 
             // Gestisco &&
             int br = gest_and(comandi_pv[j]);
@@ -117,9 +117,6 @@ int main(int argc, char** argv) {
                  comandi_pv[j] = comandi_pv[j] + br;
             }
 
-            // Se è il comando exit esci dal loop
-            if (strcmp(comandi_pv[j], "exit") == 0) { running = 0; break; }
-
             int t = strlen(comandi_pv[j]) - 1;
             if (comandi_pv[j][t] == '&') {
                 comandi_pv[j][t] = '\0';
@@ -129,11 +126,17 @@ int main(int argc, char** argv) {
                 else if (pid == 0) {
                     printf("[%d] Running in backgound: %s\n", getpid(), comandi_pv[j]);
                     close(0);
+
+                    comandi_pv[j] = parse_alias(comandi_pv[j]);                 // Gestisci alias
+                    comandi_pv[j] = expand_wildcard(comandi_pv[j]);             // Gestisci wildcards
+
                     exec_line(comandi_pv[j]);
                     printf("\n[%d] Done: %s\n", getpid(), comandi_pv[j]);
                     fflush(stdout);
                 }
             } else {
+                comandi_pv[j] = parse_alias(comandi_pv[j]);                 // Gestisci alias
+                comandi_pv[j] = expand_wildcard(comandi_pv[j]);             // Gestisci wildcards
                 struct PROCESS p = exec_line(comandi_pv[j]);
                 if (p.status == 65280) printcolor("! Error: command not found.\n", KRED);
                 else if (p.status != 0) { printcolor("Non-zero exit status: ", KMAG); printf("%d\n", p.status); }
@@ -147,10 +150,10 @@ int main(int argc, char** argv) {
         struct stat buffer;
         if(stat(opt.log_out_path, &buffer) == 0)
             if (buffer.st_size > opt.max_size)
-                printcolor("Il file di log dello stdout ha raggiunto la dimensione massima!\n", KRED);
+                printcolor("! Warning: maximum stdout log file size reached\n", KRED);
         if(stat(opt.log_err_path, &buffer) == 0)
             if (buffer.st_size > opt.max_size)
-                printcolor("Il file di log dello stderr ha raggiunto la dimensione massima!\n", KRED);
+                printcolor("! Warning: maximum stderr log file size reached\n", KRED);
     }
 
     // Pulisci tutto ed esci

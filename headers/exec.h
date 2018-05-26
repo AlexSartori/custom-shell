@@ -1,3 +1,7 @@
+/*
+    Gestione ed esecuzione delle linee di comando
+*/
+
 #ifndef EXEC_H
 #define EXEC_H
 

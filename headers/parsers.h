@@ -1,8 +1,12 @@
+/*
+    Funzioni per il parsing di alias e variabili
+*/
+
 #ifndef PARSERS_H
 #define PARSERS_H
 
-
 void vectors_initializer();
+void vectors_destroy();
 
 
 // Gestione alias

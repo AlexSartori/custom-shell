@@ -5,6 +5,10 @@
 #include "../headers/vector.h"
 #include "../headers/utils.h"
 
+
+#define DIM 128
+
+
 vector vector_alias;
 vector vector_vars;
 
@@ -19,14 +23,22 @@ void vectors_initializer() {
 
 
 /*
+    Dealloca i vector per alias e variabili
+*/
+void vectors_destroy() {
+    vector_free(&vector_alias);
+    vector_free(&vector_vars);
+}
+
+
+/*
     Se in comando è presente un alias lo sostituisce e ritorna una nuova stringa
 */
 char* parse_alias(char* comando) {
     // printf("---   Parse alias: '%s'\n", comando);
     char *init = malloc(sizeof(char)*(strlen(comando) + 1));
     strcpy(init, comando);
-    char *token = strtok(comando, " "),
-         *ns = malloc(sizeof(char)*(strlen(comando)+BUF_SIZE)); // BUF_SIZE spazio per l'alias
+    char *token = strtok(comando, " "), *ns;
 
     int ok = 0, i;
     for(i = 0; i < vector_total(&vector_alias); i++) {
@@ -34,6 +46,7 @@ char* parse_alias(char* comando) {
 
         if(strcmp(token, tmp->name) == 0) {
             ok = 1;
+            ns = malloc(sizeof(char)*(strlen(comando) + strlen(tmp->data) + 2));
             strcpy(ns, tmp->data);
             token = strtok(NULL, " ");
             while(token) {
@@ -48,12 +61,10 @@ char* parse_alias(char* comando) {
     }
 
     if(ok == 0) {
-        free(comando);
-        free(ns);
         return init;
-    } else {
+    }
+    else {
         free(init);
-        free(comando);
         return ns;
     }
 }
@@ -117,7 +128,6 @@ int make_alias(char *copy_line) {
         if (search_alias(insert) != -1) printcolor("! Error: this alias already exists.", KRED);
         else vector_add(&vector_alias, insert);
     }
-
     free(copy_line);
     return 0;
 }
@@ -157,13 +167,13 @@ char* search_var_name(char *name) {
     Sostituisce le variabili presenti in comando e restituisce una nuova stringa
 */
 char* parse_vars(char *comando) {
-    char *c = malloc(sizeof(char) * (strlen(comando)+BUF_SIZE)); // BUF_SIZE spazio per le var
-    char *var = malloc(sizeof(char) * BUF_SIZE);
+    char *c = malloc(sizeof(char) * (strlen(comando)+1)*2);
+    char *var = malloc(sizeof(char) * (strlen(comando)+1));
     int j = 0, i = 0, z = 0, k = 0;
     char* data;
 
-    for (i = 0; comando[i]; i++) {
-        if (comando[i] != '$') {
+    for(i = 0; comando[i]; i++) {
+        if(comando[i] != '$') {
             c[j] = comando[i];
             j++;
         } else {
@@ -175,19 +185,17 @@ char* parse_vars(char *comando) {
                 z++;
             }
             var[z] = '\0';
-            // printf("FOUND VAR: %s\n", var);
+            //printf("FOUND VAR: %s\n", var);
             data = search_var_name(var);
-
             // Cerca anche nelle variabili globali
             if (data == NULL) data = getenv(var);
 
             if(data == NULL) {
-                // Nesuna trovata, ritorno il comando originale così da l'errore
-                // printcolor("! Error: variable not found\n", KRED);
-                break;
+                printcolor("! Error: variable not found\n", KRED);
+                return comando;
             }
             //printf("FOUND DATA: %s\n", data);
-            for (k = 0; data[k]; k++) {
+            for(k = 0; data[k]; k++) {
                 c[j] = data[k];
                 j++;
             }
@@ -196,8 +204,7 @@ char* parse_vars(char *comando) {
     }
     c[j] = '\0';
     free(var);
-    // free(comando);
-    // printf("%s\n", c);
+    //printf("%s\n", c);
     return c;
 }
 
@@ -234,7 +241,6 @@ int make_var(char *copy_line) {
             vector_add(&vector_vars, insert);
         }
     }
-
     free(copy_line);
     return 0;
 }
@@ -249,7 +255,7 @@ void inc_var(char *name) {
         elemento* tmp = (elemento*)vector_get(&vector_vars, i);
 
         if(strcmp(name, tmp->name) == 0)
-            snprintf(tmp->data, 100, "%d", atoi(tmp -> data) + 1);
+            snprintf(tmp->data, DIM, "%d", atoi(tmp -> data) + 1);
     }
 }
 
